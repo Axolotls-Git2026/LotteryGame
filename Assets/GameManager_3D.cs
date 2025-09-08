@@ -374,10 +374,10 @@ public class GameManager_3D : MonoBehaviour
                 Debug.Log(" Bets submitted successfully!");
                 Debug.Log("Message: " + response.message);
                 Debug.Log("Wallet Balance: " + response.wallet);
-                Debug.Log("PDF URL: " + response.pdf_url);
+               // Debug.Log("PDF URL: " + response.pdf_url);
 
                // gridMgr.ClearAll();
-                StartCoroutine(DownloadPDF(response.pdf_url));
+              //  StartCoroutine(DownloadPDF(response.pdf_url));
             }
         }
         else
