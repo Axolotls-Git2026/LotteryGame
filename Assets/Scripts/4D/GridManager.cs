@@ -460,32 +460,47 @@ public class GridManager : MonoBehaviour
     //}
 
     void FillRow(int rowIndex, string value)
-
     {
-
+        Debug.Log("Fill row called");
         isUpdatingInputs = true;
 
         for (int c = 0; c < cols; c++)
-
         {
-
+            // --- If no value entered ---
             if (string.IsNullOrEmpty(value))
-
+            {
                 rowValues[rowIndex, c] = null;
-
+            }
             else if (int.TryParse(value, out int amount))
-
-                rowValues[rowIndex, c] = amount;
-
-
+            {
+                // --- If "All" toggle is ON ---
+                if (allNum != null && allNum.isOn)
+                {
+                    rowValues[rowIndex, c] = amount;
+                }
+                // --- If "Even" toggle is ON (apply only to even columns) ---
+                else if (evenNum != null && evenNum.isOn && c % 2 == 0)
+                {
+                    rowValues[rowIndex, c] = amount;
+                }
+                // --- If "Odd" toggle is ON (apply only to odd columns) ---
+                else if (oddNum!= null && oddNum.isOn && c % 2 != 0)
+                {
+                    rowValues[rowIndex, c] = amount;
+                }
+                // --- If no toggle is ON, clear cells ---
+                else
+                {
+                    rowValues[rowIndex, c] = null;
+                }
+            }
 
             UpdateCell(rowIndex, c);
-
         }
 
         isUpdatingInputs = false;
-
     }
+
 
 
 
@@ -666,7 +681,15 @@ public class GridManager : MonoBehaviour
                         {
                             seriesManager.betNumbers.Add(bettedNum, val);
                         }
+
                     }
+                    // Debug the dictionary contents
+                    string dictLog = "Current betNumbers: ";
+                    foreach (var kvp in seriesManager.betNumbers)
+                    {
+                        dictLog += $"[{kvp.Key} : {kvp.Value}] ";
+                    }
+                    Debug.Log("Current bet nums : " + dictLog);
                 }
             }
         }
@@ -755,7 +778,9 @@ public class GridManager : MonoBehaviour
         // Assuming GameManager and ToastManager exist
         GameManager.instance.qntypointsMgr.ClearData();
         ClearBandF();
-
+        HandleAllToggle();
+        GameManager.instance.advnceTime.ClearAdvanceTimeData();
+        familyToggle.isOn = false;
         SoundManager.Instance.PlaySound(SoundManager.Instance.commonSound);
     }
     public void ClearPopup()

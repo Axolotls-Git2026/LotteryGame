@@ -18,6 +18,8 @@ public class GameAPIs
     public static string advanceTimeAPi = baseUrl + "fetch/slots"; //param  id
     public static string fetchResultAPi = baseUrl + "fetch/result_history"; //param  id
     public static string fetchHistoryAPi = baseUrl + "fetch/bet_history"; //param  id
+    public static string fetchHistoryDetailsAPi = baseUrl + "fetch/show_bets"; //param  id
+    public static string cancelBetAPi = baseUrl + "fetch/cancel_bet"; //param  id
 
 
 

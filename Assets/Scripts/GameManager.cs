@@ -8,6 +8,7 @@ using UnityEngine.Networking;
 using SFB;
 using UnityEngine.SceneManagement;
 using System.Linq;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 public class GameManager : MonoBehaviour
 {
     [DllImport("user32.dll")]
@@ -24,6 +25,7 @@ public class GameManager : MonoBehaviour
     public GridManager gridMgr;
     public QuantityPointsManager qntypointsMgr;
     public TimeIncrementer incrementer;
+    public AdvanceTime advnceTime;
 
     [Header("Game Data")]
     public GameObject[] dataObjs;
@@ -39,6 +41,12 @@ public class GameManager : MonoBehaviour
     public GameObject toastPopup;
     public GameObject randomNumObj;
 
+    public TMP_Text drawTime;
+    public TMP_Text drawId;
+    public TMP_Text lastResultMin;
+    public TMP_Text lastResultSec;
+    public TMP_InputField barcodeTxt;
+
 
     public Canvas canvas;
     private void Awake()
@@ -51,7 +59,7 @@ public class GameManager : MonoBehaviour
         StartCoroutine(FetchUserData());
         StartCoroutine(FetchResultsOnStart());
         GetTimer();
-       
+       FindAnyObjectByType<LoginManager>().gameObject.SetActive(false);
         ToastManager.Instance.transform.SetParent(canvas.transform);
     }
 
@@ -64,6 +72,7 @@ public class GameManager : MonoBehaviour
             gridMgr.ClearAll();
             qntypointsMgr.ClearData();
             gridMgr.ClearPopup();
+          
         }
     }
 
@@ -103,7 +112,15 @@ public class GameManager : MonoBehaviour
                         { "Date Time", data.datetime },
                         { "Current Slot", data.current_slot }
                     };
-
+                    drawTime.text = data.current_slot;
+                    drawId.text = data.draw_id;
+                    advnceTime.selectedTimes.Add(data.current_slot);
+                    string[] previousSlotParts = data.previous_slot.Split(':');
+                    if (previousSlotParts.Length == 2)
+                    {
+                        lastResultMin.text = previousSlotParts[0];
+                        lastResultSec.text = previousSlotParts[1].Split(' ')[0]; // Splits "15 PM" to get "15"
+                    }
                     int index = 0;
                     foreach (var entry in kv)
                     {
@@ -181,6 +198,7 @@ public class GameManager : MonoBehaviour
             }
         }
         gridMgr.ClearAll();
+        StartCoroutine(FetchUserData());
     }
 
     public IEnumerator FetchResultsOnStart()
@@ -228,6 +246,13 @@ public class GameManager : MonoBehaviour
                 gridMgr.SaveCurrentGridData(series, range);
             }
         }
+        //string dictLog = "Current betNumbers: ";
+        //foreach (var kvp in seriesMgr.betNumbers)
+        //{
+        //    dictLog += $"[{kvp.Key} : {kvp.Value}] ";
+        //}
+        //Debug.Log("Current bet nums : " + dictLog);
+
         Dictionary<int, int> sortedDicByKey = seriesMgr.betNumbers
     .OrderBy(kvp => kvp.Key)
     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
@@ -342,6 +367,7 @@ public class GameManager : MonoBehaviour
         }
         randomNumObj.SetActive(true);
         randomNumObj.GetComponent<ShowRandomNums>().animCoroutine = StartCoroutine(randomNumObj.GetComponent<ShowRandomNums>().AnimateNumbers());
+        gridMgr.familyToggle.isOn = false;
     }
     IEnumerator SoundDelay()
     {
@@ -369,11 +395,12 @@ public class GameManager : MonoBehaviour
     {
         string url = GameAPIs.submitBetAPi;
 
-        // Wrap dictionary + userId + points
-        BetPayload<int, int> payload = new BetPayload<int, int>(userid, betNumbers, points, draw_time);
+        // Create the payload with the list of selected times
+        BetPayload<int, int> payload = new BetPayload<int, int>(userid, betNumbers, points, advnceTime.selectedTimes);
         string json = JsonUtility.ToJson(payload);
+
         loadingObj.SetActive(true);
-        // Send as raw JSON
+
         UnityWebRequest www = new UnityWebRequest(url, "POST");
         byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(json);
         www.uploadHandler = new UploadHandlerRaw(bodyRaw);
@@ -385,10 +412,9 @@ public class GameManager : MonoBehaviour
         if (www.result == UnityWebRequest.Result.Success)
         {
             loadingObj.SetActive(false);
-
             Debug.Log("Response: " + www.downloadHandler.text);
 
-            // Parse JSON into SubmitResponse
+            // Parse JSON into the updated SubmitResponse class
             SubmitResponse response = JsonUtility.FromJson<SubmitResponse>(www.downloadHandler.text);
 
             if (response != null && response.status == "success")
@@ -397,10 +423,15 @@ public class GameManager : MonoBehaviour
                 Debug.Log(" Bets submitted successfully!");
                 Debug.Log("Message: " + response.message);
                 Debug.Log("Wallet Balance: " + response.wallet);
-                Debug.Log("PDF URL: " + response.pdf_url);
+
+                // Loop through the list of PDF URLs and call the download coroutine for each
+                foreach (string pdfUrl in response.pdf_urls)
+                {
+                    Debug.Log("PDF URL: " + pdfUrl);
+                    StartCoroutine(DownloadPDF(pdfUrl));
+                }
 
                 gridMgr.ClearAll();
-                StartCoroutine(DownloadPDF(response.pdf_url));
             }
         }
         else
@@ -434,7 +465,7 @@ public class GameManager : MonoBehaviour
                     Debug.Log("PDF saved at: " + path);
 
                     // Open the file after saving (optional)
-                    Application.OpenURL(path);
+                //    Application.OpenURL(path);
                     StartCoroutine(FetchUserData());
                     GetTimer();
                 }
@@ -448,26 +479,101 @@ public class GameManager : MonoBehaviour
         }
     }
 
+
+    //public GameObject loadingObject; // Assuming you have a loading indicator
+
+    public void CancelBetBtn()
+    {
+        if (string.IsNullOrEmpty(barcodeTxt.text))
+        {
+            ToastManager.Instance.ShowToast("Enter valid Barcode ID");
+            return;
+        }
+
+        // Start the coroutine to send the API request
+        StartCoroutine(CancelBetAPI(barcodeTxt.text));
+    }
+
+    public IEnumerator CancelBetAPI(string barcode)
+    {
+        // Replace with your actual API endpoint for canceling bets
+        string cancelBetUrl = GameAPIs.cancelBetAPi;
+
+        WWWForm form = new WWWForm();
+        form.AddField("id", PlayerPrefs.GetInt("UserId"));
+        form.AddField("barcode", barcode);
+
+        loadingObj.SetActive(true);
+
+        using (UnityWebRequest www = UnityWebRequest.Post(cancelBetUrl, form))
+        {
+            yield return www.SendWebRequest();
+
+            loadingObj.SetActive(false);
+
+            if (www.result == UnityWebRequest.Result.Success)
+            {
+                // Deserialize the JSON response
+                CancelResponse response = JsonUtility.FromJson<CancelResponse>(www.downloadHandler.text);
+
+                if (response != null)
+                {
+                    if (response.status == "success")
+                    {
+                        // Handle a successful cancellation
+                        ToastManager.Instance.ShowToast(response.message);
+                        Debug.Log("Bet canceled successfully: " + response.message);
+                        // Optional: Clear the input field and other UI elements
+                        barcodeTxt.text = "";
+                        ToastManager.Instance.ShowToast("Bet cancelled successfully");
+                    }
+                    else if (response.status == "error")
+                    {
+                        // Handle an unsuccessful cancellation (e.g., "No active bets")
+                        ToastManager.Instance.ShowToast("Error canceling bet");
+                        Debug.LogError("Error canceling bet: " + response.message);
+                      //  ToastManager.Instance.ShowToast("Unexpected error occured.Try Again");
+
+                    }
+                    else
+                    {
+                        // Handle other unexpected statuses
+                        ToastManager.Instance.ShowToast("Unexpected response from server.");
+                        Debug.LogError("Unexpected status: " + response.status);
+                    }
+                }
+            }
+            else
+            {
+                // Handle a network or server error
+                ToastManager.Instance.ShowToast("Unexpected response from server.");
+                Debug.LogError("UnityWebRequest Error: " + www.error);
+            }
+        }
+    }
+
     public void ClaimPoints()
     {
 
     }
-
 
     [System.Serializable]
     public class BetPayload<TKey, TValue>
     {
         public int userid;
         public int points;
-        public string draw_time;
+
+        // Change this to a list to match the JSON array
+        public List<string> draw_time;
 
         public List<Entry<TKey, TValue>> items = new List<Entry<TKey, TValue>>();
 
-        public BetPayload(int userId, Dictionary<TKey, TValue> dict, int points, string draw_time)
+        public BetPayload(int userId, Dictionary<TKey, TValue> dict, int points, List<string> draw_times)
         {
             this.userid = userId;
             this.points = points;
-            this.draw_time = draw_time;
+            this.draw_time = draw_times;
+
             foreach (var kv in dict)
             {
                 items.Add(new Entry<TKey, TValue> { key = kv.Key, value = kv.Value });
@@ -532,6 +638,8 @@ public class UserDataResponse
     public string tran_pt;
     public string datetime;
     public string current_slot;
+    public string previous_slot;
+    public string draw_id;
 }
 
 [System.Serializable]
@@ -539,7 +647,13 @@ public class NumberData
 {
     public string number;
 }
-
+// Define a serializable class to match the JSON response structure
+[System.Serializable]
+public class CancelResponse
+{
+    public string status;
+    public string message;
+}
 [System.Serializable]
 public class ResultsResponse
 {
@@ -561,6 +675,8 @@ public class SubmitResponse
     public string status;
     public string message;
     public int wallet;
-    public string pdf_url;
+    public string set_name;
+    // Update this from a single string to a list of strings
+    public List<string> pdf_urls;
 }
 

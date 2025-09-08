@@ -36,6 +36,7 @@ public class ResultFetcher : MonoBehaviour
 
     private IEnumerator FetchResults()
     {
+        GameManager.instance.loadingObj.gameObject.SetActive(true);
         using (UnityWebRequest www = UnityWebRequest.Get(GameAPIs.fetchResultAPi))
         {
             yield return www.SendWebRequest();
@@ -71,6 +72,8 @@ public class ResultFetcher : MonoBehaviour
                             numText.text = entry.numbers[i];
                         }
                     }
+                    GameManager.instance.loadingObj.gameObject.SetActive(false);
+
                 }
                 else
                 {
