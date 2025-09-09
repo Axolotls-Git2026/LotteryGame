@@ -112,6 +112,8 @@ public class GridManager : MonoBehaviour
         oddNum.onValueChanged.AddListener((isOn) => HandleToggle(oddNum, isOn));
     }
 
+    private Coroutine debounceCoroutine;
+
     private void OnSingleInputChanged(int r, int c, string newValue)
     {
         if (isUpdatingInputs)
@@ -119,8 +121,34 @@ public class GridManager : MonoBehaviour
             return;
         }
 
+        // Stop any previous debounce coroutine to prevent redundant saves
+        if (debounceCoroutine != null)
+        {
+            StopCoroutine(debounceCoroutine);
+        }
+
+        // Start a new coroutine that will wait before saving the data
+        debounceCoroutine = StartCoroutine(DebounceSave(r, c, newValue));
+    }
+
+    private IEnumerator DebounceSave(int r, int c, string newValue)
+    {
+        // Wait for a short duration after the last input
+        // 0.2f is a good starting point, adjust as needed
+        yield return new WaitForSeconds(0.2f);
+
         TMP_InputField field = gridInputs[r, c].transform.GetChild(1).GetComponent<TMP_InputField>();
-        ValueValidation(newValue, field);
+
+        int value = 0;
+        if (int.TryParse(newValue, out int parsedValue))
+        {
+            value = Mathf.Clamp(parsedValue, 0, 999);
+            field.text = value.ToString();
+        }
+        else
+        {
+            field.text = "";
+        }
 
         if (familyToggle.isOn)
         {
@@ -130,17 +158,55 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // This is the crucial part:
-        // When a single input changes, you need to save ALL active ranges.
+        // Only now, after the debounce, do we perform the expensive operation
+        // The foreach loops are here as per your logic
         foreach (int series in seriesManager.currentSeriesSelected)
         {
             foreach (int range in seriesManager.currentRangeSelected)
             {
-                SaveCurrentGridData(series, range);
+                UpdateSingleCellData(series, range, r, c, value);
             }
         }
 
         RecalculateTotals();
+
+        debounceCoroutine = null;
+    }
+
+    // A new, more efficient helper function to update a single cell
+    public void UpdateSingleCellData(int series, int range, int row, int col, int value)
+    {
+        var key = (series, range);
+        if (!allGridData.ContainsKey(key))
+        {
+            allGridData[key] = new Dictionary<(int, int), string>();
+        }
+
+        var gridInputdata = allGridData[key];
+        gridInputdata[(row, col)] = value.ToString();
+
+        int bettedNum = CalculateNumbers(series, range, row, col);
+
+        if (value > 0)
+        {
+            // Add or update the bet number
+            seriesManager.betNumbers[bettedNum] = value;
+            Debug.Log($"Added/Updated bet number: {bettedNum} with value: {value}.");
+        }
+        else
+        {
+            // Remove the bet number
+            seriesManager.betNumbers.Remove(bettedNum);
+            Debug.Log($"Removed bet number: {bettedNum}.");
+        }
+
+        // Always debug the current state of the dictionary
+        string dictLog = "Current betNumbers: ";
+        foreach (var kvp in seriesManager.betNumbers)
+        {
+            dictLog += $"[{kvp.Key}:{kvp.Value}] ";
+        }
+        Debug.Log(dictLog);
     }
 
     private void UpdateFamily(int baseNumber, string value)
@@ -681,7 +747,7 @@ public class GridManager : MonoBehaviour
                         else
                         {
                             seriesManager.betNumbers.Add(bettedNum, val);
-                            Debug.Log("Number : " + bettedNum + " Added to dictionary : " + "with value : " + val);
+                          //  Debug.Log("Number : " + bettedNum + " Added to dictionary : " + "with value : " + val);
 
                         }
 
@@ -692,7 +758,7 @@ public class GridManager : MonoBehaviour
                     {
                         dictLog += $"[{kvp.Key} : {kvp.Value}] ";
                     }
-                    Debug.Log("Current bet nums : " + dictLog);
+                   // Debug.Log("Current bet nums : " + dictLog);
                 }
             }
         }
