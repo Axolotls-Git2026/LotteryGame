@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class ResultFetcher : MonoBehaviour
 {
@@ -22,15 +23,50 @@ public class ResultFetcher : MonoBehaviour
 
     [Header("Prefab & Parent")]
     public GameObject resultPrefab;   // Assign in Inspector
+    public GameObject resultPrefab_3D;   // Assign in Inspector
     public Transform parent;          // Where to spawn results
+    public GameObject parent_3d;          // Where to spawn results
+
+    private void OnEnable()
+    {
+        if (SceneManager.GetActiveScene().name.Contains("3D"))
+        {
+            Debug.Log("Fetch 3d called");
+            Fetch3DResult();
+        }
+        else
+        { 
+            FetchAndInstantiate();
+        }
+    }
+    private void OnDisable()
+    {
+        if (parent.childCount > 0)
+        {
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                Destroy(parent.GetChild(i).gameObject);
+            }
+        }
+    }
 
     private void Start()
     {
-        FetchAndInstantiate();
+
+     //   FetchAndInstantiate();
     }
 
     public void FetchAndInstantiate()
     {
+        if (parent.childCount > 0)
+        {
+            for (int i = 0; i <= parent.childCount; i++)
+            {
+
+                Destroy(parent.GetChild(i));
+            }
+        }
+
         StartCoroutine(FetchResults());
     }
 
@@ -51,6 +87,11 @@ public class ResultFetcher : MonoBehaviour
                 Debug.Log("Response: " + json);
 
                 ApiResponse response = JsonUtility.FromJson<ApiResponse>(json);
+                if (response.status != "success")
+                {
+                    GameManager.instance.loadingObj.gameObject.SetActive(false);
+                    ToastManager.Instance.ShowToast("No data found");
+                }
 
                 if (response != null && response.data != null && response.data.Length > 0)
                 {
@@ -82,4 +123,10 @@ public class ResultFetcher : MonoBehaviour
             }
         }
     }
+
+    public void Fetch3DResult()
+    {
+     StartCoroutine(GameManager_3D.instance.FetchAndSpawn(resultPrefab_3D, parent_3d));
+    }
+
 }

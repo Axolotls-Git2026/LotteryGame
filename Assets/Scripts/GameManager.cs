@@ -8,15 +8,21 @@ using UnityEngine.Networking;
 using SFB;
 using UnityEngine.SceneManagement;
 using System.Linq;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
+using System.Threading.Tasks;
+using static GameManager_3D;
+using UnityEngine.UI;
+using System;
+using System.Linq.Expressions;
+
 public class GameManager : MonoBehaviour
 {
     [DllImport("user32.dll")]
-    private static extern bool  ShowWindow(System.IntPtr hWnd, int nCmdShow);
+    private static extern bool ShowWindow(System.IntPtr hWnd, int nCmdShow);
 
     [DllImport("user32.dll")]
     private static extern System.IntPtr GetActiveWindow();
-
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
     const int SW_MINIMIZE = 6;
 
 
@@ -26,6 +32,7 @@ public class GameManager : MonoBehaviour
     public QuantityPointsManager qntypointsMgr;
     public TimeIncrementer incrementer;
     public AdvanceTime advnceTime;
+    public Button buybtn;
 
     [Header("Game Data")]
     public GameObject[] dataObjs;
@@ -47,20 +54,33 @@ public class GameManager : MonoBehaviour
     public TMP_Text lastResultSec;
     public TMP_InputField barcodeTxt;
 
-
+    public GameObject resetPassPnl;
+    public GameObject toasterHolderObj;
     public Canvas canvas;
     private void Awake()
     {
         instance = this;
     }
-
-    private void Start()
+    private void OnEnable()
     {
         StartCoroutine(FetchUserData());
+
+    }
+    private void Start()
+    {
+        Screen.orientation = ScreenOrientation.LandscapeLeft;
+        if (PlayerPrefs.GetString("pass_count") == "0")
+        {
+            resetPassPnl.gameObject.SetActive(true);
+        }
+        //  StartCoroutine(FetchUserData());
         StartCoroutine(FetchResultsOnStart());
+        CheckSession();
+        UpdatePlayerStatus(PlayerPrefs.GetInt("UserId"));
         GetTimer();
-       FindAnyObjectByType<LoginManager>().gameObject.SetActive(false);
-        ToastManager.Instance.transform.SetParent(canvas.transform);
+        FindAnyObjectByType<LoginManager>()?.gameObject.SetActive(false);
+        //  toasterHolderObj = GameObject.FindGameObjectWithTag("LoginCanvas");
+        //  ToastManager.Instance.transform.SetParent(canvas.transform);
     }
 
 
@@ -71,8 +91,8 @@ public class GameManager : MonoBehaviour
             seriesMgr.ClearAllSeriesAndRange();
             gridMgr.ClearAll();
             qntypointsMgr.ClearData();
-            gridMgr.ClearPopup();
-          
+            //  gridMgr.ClearPopup();
+
         }
     }
 
@@ -81,6 +101,16 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene(_index);
     }
 
+    #region Logout API
+    public void LogOUT()
+    {
+        UpdatePlayerStatus(PlayerPrefs.GetInt("UserId"));
+        PlayerPrefs.DeleteAll();
+        LoadScene(0);
+
+    }
+
+    #endregion
     public IEnumerator FetchUserData()
     {
         WWWForm form = new WWWForm();
@@ -114,7 +144,14 @@ public class GameManager : MonoBehaviour
                     };
                     drawTime.text = data.current_slot;
                     drawId.text = data.draw_id;
-                    advnceTime.selectedTimes.Add(data.current_slot);
+                    if (!advnceTime.selectedTimes.Contains(data.current_slot))
+                    {
+                        advnceTime.selectedTimes.Add(data.current_slot);
+                    }
+                    advnceTime.RecalculationForAdvTime();
+
+
+                    PlayerPrefs.SetInt("selectedTimes", advnceTime.selectedTimes.Count);
                     string[] previousSlotParts = data.previous_slot.Split(':');
                     if (previousSlotParts.Length == 2)
                     {
@@ -142,6 +179,8 @@ public class GameManager : MonoBehaviour
 
     public IEnumerator FetchResults(GameObject[] list1, GameObject[] list2, GameObject[] list3)
     {
+        CheckSession();
+
         WWWForm form = new WWWForm();
         form.AddField("id", PlayerPrefs.GetInt("UserId"));
 
@@ -197,9 +236,136 @@ public class GameManager : MonoBehaviour
                 }
             }
         }
-        gridMgr.ClearAll();
-        StartCoroutine(FetchUserData());
+        // gridMgr.ClearAll();
+        SceneManager.LoadSceneAsync(1);
+        // yield return StartCoroutine(ClearAndReinitialize());
+        yield return StartCoroutine(FetchUserData());
     }
+
+    private IEnumerator ClearAndReinitialize()
+    {
+        // Clear everything
+        gridMgr.ClearAll();
+
+        // Wait for clear to complete
+        yield return new WaitForSeconds(0.1f);
+
+        // ? CRITICAL: Re-initialize the game state properly
+        gridMgr.ResetGameCompletely(); // Use the comprehensive reset method we created earlier
+
+        // Wait a bit more for re-initialization
+        yield return new WaitForSeconds(0.1f);
+
+        Debug.Log("Game re-initialized after fetch results");
+    }
+
+    #region PlayerStatusAPi
+
+    public void UpdatePlayerStatus(int userId)
+    {
+        StartCoroutine(UpdatePlayerStatusCoroutine(userId));
+    }
+
+    private IEnumerator UpdatePlayerStatusCoroutine(int userId)
+    {
+        // ? Prepare Form Data
+        WWWForm form = new WWWForm();
+        form.AddField("id", userId);
+
+        using (UnityWebRequest www = UnityWebRequest.Post(GameAPIs.playerStatusAPi, form))
+        {
+            Debug.Log("?? Sending ID: " + userId);
+
+            yield return www.SendWebRequest();
+
+            if (www.result == UnityWebRequest.Result.Success)
+            {
+                Debug.Log("? Player Status Response: " + www.downloadHandler.text);
+
+                // ? Parse JSON response
+                PlayerStatusResponse response = JsonUtility.FromJson<PlayerStatusResponse>(www.downloadHandler.text);
+                if (response != null && response.status == "success")
+                {
+                    Debug.Log("?? Message: " + response.message);
+                    Debug.Log("?? New Status: " + response.new_status);
+                }
+                else
+                {
+                    Debug.LogWarning("?? Unexpected response: " + www.downloadHandler.text);
+                }
+            }
+            else
+            {
+                Debug.LogError("? API Error: " + www.error);
+            }
+        }
+    }
+
+    [System.Serializable]
+    private class PlayerStatusResponse
+    {
+        public string status;
+        public string message;
+        public int new_status;
+    }
+
+    #endregion
+
+    #region SessionMatchAPI
+
+    [System.Serializable]
+    public class SessionResponse
+    {
+        public string status;
+        public string message;
+    }
+
+
+
+
+    public void CheckSession()
+    {
+        StartCoroutine(CheckSession(PlayerPrefs.GetString("Sessionid")));
+    }
+
+    public IEnumerator CheckSession(string sessionId)
+    {
+        // ?? Prepare Form Data
+        WWWForm form = new WWWForm();
+        form.AddField("sessionid", sessionId);
+
+        // ?? Send Request
+        using (UnityWebRequest www = UnityWebRequest.Post(GameAPIs.checkSessionAPi, form))
+        {
+            yield return www.SendWebRequest();
+
+            // ?? Handle response
+            if (www.result == UnityWebRequest.Result.Success)
+            {
+                Debug.Log("API Response: " + www.downloadHandler.text);
+
+                // Parse JSON response
+                SessionResponse response = JsonUtility.FromJson<SessionResponse>(www.downloadHandler.text);
+
+                if (response.status == "success")
+                {
+
+                }
+                else
+                {
+                    ToastManager.Instance.ShowToast(response.message);
+                    LogOUT();
+                }
+            }
+            else
+            {
+                Debug.LogError($"Request failed: {www.error}\nResponse: {www.downloadHandler.text}");
+
+            }
+        }
+    }
+    #endregion
+
 
     public IEnumerator FetchResultsOnStart()
     {
@@ -234,141 +400,201 @@ public class GameManager : MonoBehaviour
             }
         }
     }
+    private bool isBuying = false; // Add this flag to your class
 
-    public void BuyBtn()
+    public IEnumerator SaveAllSelectedCoroutine()
     {
-        SoundManager.Instance.PlaySound(SoundManager.Instance.commonSound);
+        // Check the flag at the very beginning
+        if (isBuying)
+        {
+            Debug.LogWarning("Buy process already in progress. Ignoring duplicate call.");
+            yield break; // Exit the coroutine immediately
+        }
 
+        isBuying = true; // Set the flag to true to lock the process
+
+        if (loadingObj != null)
+            loadingObj.SetActive(true);
+
+        // Step 1: Collect and save data
         foreach (int series in seriesMgr.currentSeriesSelected)
         {
             foreach (int range in seriesMgr.currentRangeSelected)
             {
                 gridMgr.SaveCurrentGridData(series, range);
+                yield return null;
             }
         }
-        //string dictLog = "Current betNumbers: ";
-        //foreach (var kvp in seriesMgr.betNumbers)
-        //{
-        //    dictLog += $"[{kvp.Key} : {kvp.Value}] ";
-        //}
-        //Debug.Log("Current bet nums : " + dictLog);
 
+        if (loadingObj != null)
+            loadingObj.SetActive(false);
+
+        // Step 2: Prepare final dictionary
         Dictionary<int, int> sortedDicByKey = seriesMgr.betNumbers
-    .OrderBy(kvp => kvp.Key)
-    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-        StartCoroutine(SubmitDictionary(sortedDicByKey, PlayerPrefs.GetInt("UserId"), int.Parse(qntypointsMgr.PointsTotalTxt.text), ""));
+            .OrderBy(kvp => kvp.Key)
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+        // Step 3: Submit the dictionary
+        yield return StartCoroutine(SubmitDictionary(
+            sortedDicByKey,
+            PlayerPrefs.GetInt("UserId"),
+            (int.Parse(qntypointsMgr.PointsTotalTxt.text) / advnceTime.selectedTimes.Count),
+            ""
+        ));
+
+        isBuying = false; // Reset the flag once the process is complete
     }
+
+
+
+
+
+    public void BuyBtn()
+    {
+        CheckSession();
+        SoundManager.Instance.PlaySound(SoundManager.Instance.commonSound);
+        StartCoroutine(SaveAllSelectedCoroutine());
+    }
+
+
+    private Coroutine fetchCoroutine;
     private Coroutine timerCoroutine;
+
     public void GetTimer()
     {
-        // Stop any previously running timer coroutine
-        if (timerCoroutine != null)
-        {
-            StopCoroutine(timerCoroutine);
-        }
-        // Start the new coroutine and store its reference
-        timerCoroutine = StartCoroutine(FetchTimers());
+        // Stop any previously running fetch coroutine
+        if (fetchCoroutine != null)
+            StopCoroutine(fetchCoroutine);
+
+        fetchCoroutine = StartCoroutine(FetchTimers());
     }
 
     private IEnumerator FetchTimers()
     {
-        int maxRetries = 5; // Set a maximum number of retries
-        int retries = 0;
+        //int maxRetries = 5;
+        //int retries = 0;
 
-        // Outer loop to retry the request
-        while (retries < maxRetries)
+        //while (retries < maxRetries)
+        //{
+        WWWForm form = new WWWForm();
+        form.AddField("id", PlayerPrefs.GetInt("UserId"));
+
+        using (UnityWebRequest www = UnityWebRequest.Post(GameAPIs.getTimerAPi, form))
         {
-            WWWForm form = new WWWForm();
-            form.AddField("id", PlayerPrefs.GetInt("UserId"));
+            yield return www.SendWebRequest();
 
-            using (UnityWebRequest www = UnityWebRequest.Post(GameAPIs.getTimerAPi, form))
+            bool success = false;
+
+            if (www.result == UnityWebRequest.Result.Success)
             {
-                yield return www.SendWebRequest();
+                Debug.Log("Timer Response: " + www.downloadHandler.text);
 
-                if (www.result == UnityWebRequest.Result.Success)
+                TimerData timerData = JsonUtility.FromJson<TimerData>(www.downloadHandler.text);
+
+                if (timerData != null && timerData.status == "success")
                 {
-                    Debug.Log("Timer Response: " + www.downloadHandler.text);
-
-                    TimerData timerData = JsonUtility.FromJson<TimerData>(www.downloadHandler.text);
-
-                    if (timerData != null && timerData.status == "success")
+                    string[] parts = timerData.time_remaining.Split(':');
+                    if (parts.Length == 2 &&
+                        int.TryParse(parts[0], out int minutes) &&
+                        int.TryParse(parts[1], out int seconds))
                     {
-                        string[] parts = timerData.time_remaining.Split(':');
-                        if (parts.Length == 2)
+                        // Stop any existing timer coroutine
+                        if (timerCoroutine != null)
                         {
-                            int minutes = int.Parse(parts[0]);
-                            int seconds = int.Parse(parts[1]);
-                            timerCoroutine = StartCoroutine(RunTimer(minutes, seconds));
-                            yield break; // Exit the coroutine on success
+                            StopCoroutine(timerCoroutine);
+                            timerCoroutine = null; // ensure it's cleared
                         }
+
+                        randomNumActivated = false;
+                        timerCoroutine = StartCoroutine(RunTimer(minutes, seconds));
+
+                        success = true;
+                        yield break;
                     }
                 }
-                else
-                {
-                    Debug.LogError($"Error fetching timer (Attempt {retries + 1}/{maxRetries}): " + www.error);
-                }
             }
-            retries++;
-            yield return new WaitForSeconds(1f); // Wait before retrying
+
+            if (!success)
+            {
+                if (fetchCoroutine != null)
+                    StopCoroutine(fetchCoroutine);
+
+                fetchCoroutine = StartCoroutine(FetchTimers());
+                yield return new WaitForSeconds(1f);
+            }
         }
+
 
         Debug.LogError("Failed to fetch timer after multiple attempts.");
     }
 
+    private bool randomNumActivated = false; // class level
+
     private IEnumerator RunTimer(int minutes, int seconds)
     {
-        float timer = (minutes * 60) + seconds;
-        float oneSecondCounter = 0f;
+        float totalTime = minutes * 60 + seconds;
+        float endTime = Time.time + totalTime;
 
-        while (timer > 0)
+        int lastSecond = -1; // track last second to play sound only once per second
+        bool noMoreBetsPlayed = false;
+
+        while (Time.time < endTime)
         {
-            // Accumulate time on a per-frame basis
-            oneSecondCounter += Time.deltaTime;
+            float remaining = Mathf.Max(0, endTime - Time.time);
+            int currentMinutes = Mathf.FloorToInt(remaining / 60);
+            int currentSeconds = Mathf.FloorToInt(remaining % 60);
 
-            // Only update the timer every full second
-            if (oneSecondCounter >= 1f)
+            string digits = currentMinutes.ToString("00") + currentSeconds.ToString("00");
+
+            for (int i = 0; i < timerObjs.Length && i < digits.Length; i++)
             {
-                timer--;
-                oneSecondCounter = 0f;
-
-                // Calculate new minutes and seconds
-                int currentMinutes = Mathf.FloorToInt(timer / 60);
-                int currentSeconds = Mathf.FloorToInt(timer % 60);
-
-                // Format and display the time
-                string mm = currentMinutes.ToString("00");
-                string ss = currentSeconds.ToString("00");
-                string digits = mm + ss;
-
-                for (int i = 0; i < timerObjs.Length && i < digits.Length; i++)
-                {
-                    TMP_Text txt = timerObjs[i].transform.GetChild(0).GetComponent<TMP_Text>();
-                    txt.text = digits[i].ToString();
-                }
-
-                // Your existing logic for sound and other events
-                if (currentMinutes == 0 && currentSeconds == 10)
-                {
-                    Debug.Log("Only 10 seconds left!");
-                    StartCoroutine(SoundDelay());
-                }
-
-                // SoundManager.Instance.PlaySound(SoundManager.Instance.tickTimer);
+                TMP_Text txt = timerObjs[i].transform.GetChild(0).GetComponent<TMP_Text>();
+                txt.text = digits[i].ToString();
             }
 
-            yield return null; // Wait for the next frame
+            // Play noMoreBets once at 10 seconds
+            if (currentMinutes == 0 && currentSeconds == 10 && !noMoreBetsPlayed)
+            {
+                buybtn.interactable = false;
+                SoundManager.Instance.PlaySound(SoundManager.Instance.noMoreBets);
+                noMoreBetsPlayed = true;
+            }
+
+            // Play tickTimer every second below 10 seconds
+            if (currentMinutes == 0 && currentSeconds < 10 && currentSeconds != lastSecond)
+            {
+                SoundManager.Instance.PlaySound(SoundManager.Instance.tickTimer);
+                lastSecond = currentSeconds;
+            }
+
+            yield return null;
         }
 
-        // Timer end logic
+        // Set UI to 0
         for (int i = 0; i < timerObjs.Length; i++)
+            timerObjs[i].transform.GetChild(0).GetComponent<TMP_Text>().text = "0";
+
+        // Activate randomNumObj only once
+        if (!randomNumActivated)
         {
-            TMP_Text txt = timerObjs[i].transform.GetChild(0).GetComponent<TMP_Text>();
-            txt.text = "0";
+            randomNumActivated = true; // set immediately to block others
+
+            randomNumObj.SetActive(true);
+
+            ShowRandomNums s = randomNumObj.GetComponent<ShowRandomNums>();
+            if (s.animCoroutine != null)
+                StopCoroutine(s.animCoroutine);
+
+            s.animCoroutine = StartCoroutine(s.AnimateNumbers());
         }
-        randomNumObj.SetActive(true);
-        randomNumObj.GetComponent<ShowRandomNums>().animCoroutine = StartCoroutine(randomNumObj.GetComponent<ShowRandomNums>().AnimateNumbers());
+
         gridMgr.familyToggle.isOn = false;
+        timerCoroutine = null;
     }
+
+
+
+
     IEnumerator SoundDelay()
     {
         SoundManager.Instance.PlaySound(SoundManager.Instance.noMoreBets);
@@ -394,8 +620,13 @@ public class GameManager : MonoBehaviour
     IEnumerator SubmitDictionary(Dictionary<int, int> betNumbers, int userid, int points, string draw_time)
     {
         string url = GameAPIs.submitBetAPi;
-
+        Debug.Log("Submit called");
         // Create the payload with the list of selected times
+        foreach (var time in advnceTime.selectedTimes)
+        {
+            Debug.Log("selected time... " + time);
+
+        }
         BetPayload<int, int> payload = new BetPayload<int, int>(userid, betNumbers, points, advnceTime.selectedTimes);
         string json = JsonUtility.ToJson(payload);
 
@@ -413,9 +644,15 @@ public class GameManager : MonoBehaviour
         {
             loadingObj.SetActive(false);
             Debug.Log("Response: " + www.downloadHandler.text);
-
             // Parse JSON into the updated SubmitResponse class
             SubmitResponse response = JsonUtility.FromJson<SubmitResponse>(www.downloadHandler.text);
+
+            ToastManager.Instance.ShowToast(response.message);
+
+            if (response.message.Contains("Invalid data"))
+            {
+                ToastManager.Instance.ShowToast("Place Bets first");
+            }
 
             if (response != null && response.status == "success")
             {
@@ -423,15 +660,20 @@ public class GameManager : MonoBehaviour
                 Debug.Log(" Bets submitted successfully!");
                 Debug.Log("Message: " + response.message);
                 Debug.Log("Wallet Balance: " + response.wallet);
-
+                StartCoroutine(ClearDelay());
                 // Loop through the list of PDF URLs and call the download coroutine for each
-                foreach (string pdfUrl in response.pdf_urls)
+                for (int i = 0; i < response.pdf_urls.Count; i++)
                 {
-                    Debug.Log("PDF URL: " + pdfUrl);
-                    StartCoroutine(DownloadPDF(pdfUrl));
+                    string pdfUrl = response.pdf_urls[i];
+                    string setName = response.set_name[i];
+
+                    Debug.Log($"Downloading PDF: {setName} from {pdfUrl}");
+                  //  StartCoroutine(DownloadPDF(pdfUrl, setName));
                 }
 
-                gridMgr.ClearAll();
+
+                // gridMgr.ClearAll();
+
             }
         }
         else
@@ -442,7 +684,13 @@ public class GameManager : MonoBehaviour
             gridMgr.ClearAll();
         }
     }
-    public IEnumerator DownloadPDF(string pdfUrl)
+    IEnumerator ClearDelay()
+    {
+        yield return new WaitForSeconds(2f);
+        gridMgr.ClearAll();
+    }
+
+    public IEnumerator DownloadPDF(string pdfUrl, string defName)
     {
         using (UnityWebRequest www = UnityWebRequest.Get(pdfUrl))
         {
@@ -457,28 +705,35 @@ public class GameManager : MonoBehaviour
                 byte[] pdfData = www.downloadHandler.data;
 
                 // Open Save File Dialog
-                var path = StandaloneFileBrowser.SaveFilePanel("Save PDF", "", "Lottery", "pdf");
+                var path = StandaloneFileBrowser.SaveFilePanel("Save PDF", "", defName, "pdf");
 
                 if (!string.IsNullOrEmpty(path))
                 {
                     File.WriteAllBytes(path, pdfData);
                     Debug.Log("PDF saved at: " + path);
-
+                    ForceFocus();
+                    SceneManager.LoadSceneAsync(1);
                     // Open the file after saving (optional)
-                //    Application.OpenURL(path);
-                    StartCoroutine(FetchUserData());
-                    GetTimer();
+                    //    Application.OpenURL(path);
+                    // StartCoroutine(FetchUserData());
+                    //   GetTimer();
                 }
                 else
                 {
                     Debug.Log("Save cancelled.");
-
+                    ForceFocus();
+                    SceneManager.LoadSceneAsync(1);
 
                 }
             }
         }
     }
 
+    public void RedirectToUrl()
+    {
+
+        Application.OpenURL(GameAPIs.baseUrl + "Auth/check/" + PlayerPrefs.GetInt("UserId"));
+    }
 
     //public GameObject loadingObject; // Assuming you have a loading indicator
 
@@ -493,7 +748,10 @@ public class GameManager : MonoBehaviour
         // Start the coroutine to send the API request
         StartCoroutine(CancelBetAPI(barcodeTxt.text));
     }
-
+    public void ShowComingSoon()
+    {
+        ToastManager.Instance.ShowToast("Coming Soon");
+    }
     public IEnumerator CancelBetAPI(string barcode)
     {
         // Replace with your actual API endpoint for canceling bets
@@ -511,10 +769,10 @@ public class GameManager : MonoBehaviour
 
             loadingObj.SetActive(false);
 
+            CancelResponse response = JsonUtility.FromJson<CancelResponse>(www.downloadHandler.text);
             if (www.result == UnityWebRequest.Result.Success)
             {
                 // Deserialize the JSON response
-                CancelResponse response = JsonUtility.FromJson<CancelResponse>(www.downloadHandler.text);
 
                 if (response != null)
                 {
@@ -530,15 +788,15 @@ public class GameManager : MonoBehaviour
                     else if (response.status == "error")
                     {
                         // Handle an unsuccessful cancellation (e.g., "No active bets")
-                        ToastManager.Instance.ShowToast("Error canceling bet");
+                        ToastManager.Instance.ShowToast(response.message);
                         Debug.LogError("Error canceling bet: " + response.message);
-                      //  ToastManager.Instance.ShowToast("Unexpected error occured.Try Again");
+                        //  ToastManager.Instance.ShowToast("Unexpected error occured.Try Again");
 
                     }
                     else
                     {
                         // Handle other unexpected statuses
-                        ToastManager.Instance.ShowToast("Unexpected response from server.");
+                        ToastManager.Instance.ShowToast(response.message);
                         Debug.LogError("Unexpected status: " + response.status);
                     }
                 }
@@ -546,15 +804,63 @@ public class GameManager : MonoBehaviour
             else
             {
                 // Handle a network or server error
-                ToastManager.Instance.ShowToast("Unexpected response from server.");
+                ToastManager.Instance.ShowToast(response.message);
                 Debug.LogError("UnityWebRequest Error: " + www.error);
             }
         }
     }
 
-    public void ClaimPoints()
+    public void OnClaimPointsButtonClicked()
     {
+        string barcode = barcodeTxt.text.Trim();
 
+        if (string.IsNullOrEmpty(barcode))
+        {
+            Debug.LogWarning("Please enter a barcode.");
+            ToastManager.Instance.ShowToast("Please enter a barcode");
+
+            return;
+        }
+
+        StartCoroutine(ClaimPointsCoroutine(barcode));
+    }
+    public IEnumerator ClaimPointsCoroutine(string barcode)
+    {
+        WWWForm form = new WWWForm();
+        form.AddField("id", PlayerPrefs.GetInt("UserId"));  // Assuming you store user ID in PlayerPrefs
+        form.AddField("orderid", barcode);
+
+        using (UnityWebRequest www = UnityWebRequest.Post(GameAPIs.claimPointsAPi, form))
+        {
+            yield return www.SendWebRequest();
+
+            if (www.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogError("Error claiming points: " + www.error);
+                ToastManager.Instance.ShowToast("Error claiming points");
+
+
+            }
+            else
+            {
+                Debug.Log("Claim Points Response: " + www.downloadHandler.text);
+
+
+                // Optionally parse JSON if you want to check status
+                var res = JsonUtility.FromJson<ClaimPointsResponse>(www.downloadHandler.text);
+                if (res != null && res.status == "success")
+                {
+                    Debug.Log("Points claimed successfully!");
+                    ToastManager.Instance.ShowToast(res.message);
+                }
+                else
+                {
+                    Debug.LogWarning("Failed to claim points.");
+                    ToastManager.Instance.ShowToast(res.message);
+
+                }
+            }
+        }
     }
 
     [System.Serializable]
@@ -580,6 +886,18 @@ public class GameManager : MonoBehaviour
             }
         }
     }
+
+    private void ForceFocus()
+    {
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+        IntPtr handle = GetActiveWindow();
+        if (handle != IntPtr.Zero)
+        {
+            SetForegroundWindow(handle);
+        }
+#endif
+    }
+
 
     [System.Serializable]
     public class Entry<TKey, TValue>
@@ -675,7 +993,7 @@ public class SubmitResponse
     public string status;
     public string message;
     public int wallet;
-    public string set_name;
+    public string[] set_name;
     // Update this from a single string to a list of strings
     public List<string> pdf_urls;
 }

@@ -21,7 +21,7 @@ public class ShowRandomNums : MonoBehaviour
         prefixes2 = AssignPrefixes(list2, 30); // 30, 31, 32...
         prefixes3 = AssignPrefixes(list3, 50); // 50, 51, 52...
 
-        animCoroutine = StartCoroutine(AnimateNumbers());
+      //  animCoroutine = StartCoroutine(AnimateNumbers());
     }
 
     private int[] AssignPrefixes(GameObject[] list, int startPrefix)
@@ -58,6 +58,7 @@ public class ShowRandomNums : MonoBehaviour
     {
         yield return new WaitForSeconds(2f);
         this.gameObject.SetActive(false);
+       GameManager.instance.buybtn.interactable = true;
         GameManager.instance.GetTimer();
     }
 

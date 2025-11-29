@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Runtime.InteropServices;
 using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -17,7 +18,13 @@ public class LoginManager : MonoBehaviour
 
     public Toggle rememberMe;
 
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(System.IntPtr hWnd, int nCmdShow);
 
+    [DllImport("user32.dll")]
+    private static extern System.IntPtr GetActiveWindow();
+
+    const int SW_MINIMIZE = 6;
 
 
 
@@ -32,6 +39,8 @@ public class LoginManager : MonoBehaviour
 
     private void Start()
     {
+        Screen.orientation = ScreenOrientation.LandscapeLeft;
+
         if (PlayerPrefs.GetInt("RememberMe") == 1)
         {
             WWWForm form = new WWWForm();
@@ -65,7 +74,6 @@ public class LoginManager : MonoBehaviour
     }
     public void OnRememberMe()
     {
-
         PlayerPrefs.SetInt("RememberMe", rememberMe.isOn ? 1 : 0);
     }
 
@@ -179,9 +187,10 @@ public class LoginManager : MonoBehaviour
                     }
                     if (!string.IsNullOrEmpty(user_password.text))
                         PlayerPrefs.SetString(GameAPIs.user_Password, user_password.text);
-
+                        PlayerPrefs.SetString("Sessionid", userData.data.session);
+                    Debug.Log("Session Id : " + userData.data.session);
                     GameAPIs.SetUserName(userData.data.name);
-
+                    PlayerPrefs.SetString("pass_count", userData.data.pass_count);
                     StartCoroutine(LoadSceneDelay());
 
 
@@ -205,82 +214,22 @@ public class LoginManager : MonoBehaviour
 
     }
 
-    IEnumerator GetFromServerForget(string apiURL, WWWForm form)
+   
+
+
+
+   
+    public void MinimizeBtn()
     {
-        using (UnityWebRequest request = UnityWebRequest.Post(apiURL, form))
-        {
-            // Log form data
-            Debug.Log($"GetFromServerForget - API URL: {apiURL}");
-            foreach (var field in form.data)
-            {
-                Debug.Log($"GetFromServerForget - Field: {field}");
-            }
-
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError)
-            {
-                Debug.LogError("Error: " + request.error);
-            }
-            else
-            {
-                Debug.Log("Request successful!" + request.downloadHandler.text);
-                string jsonData = request.downloadHandler.text;
-                UserData data = JsonUtility.FromJson<UserData>(jsonData);
-                if (data.status == "success")
-                { }
-
-                else
-                { }
-            }
-
-            request.Dispose();
-        }
+#if UNITY_STANDALONE_WIN
+        ShowWindow(GetActiveWindow(), SW_MINIMIZE);
+#endif
     }
 
-
-
-    IEnumerator RegisterUserOnServer(string apiURL, WWWForm form, string phone, string pass)
+    public void ExitBtn()
     {
-        using (UnityWebRequest request = UnityWebRequest.Post(apiURL, form))
-        {
-            // Log form data
-            Debug.Log($"RegisterUserOnServer - API URL: {apiURL}");
-            foreach (var field in form.data)
-            {
-                Debug.Log($"RegisterUserOnServer - Field: {field}");
-            }
-
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError)
-            {
-                Debug.LogError("Error: " + request.error);
-            }
-            else
-            {
-                Debug.Log("Request successful!" + request.downloadHandler.text);
-                string jsonData = request.downloadHandler.text;
-                UserData data = JsonUtility.FromJson<UserData>(jsonData);
-
-                if (data.status == "success")
-                {
-                    form.AddField("phone", phone);
-                    form.AddField("password", pass);
-                    form.AddField("deviceid", GetDeviceID());
-                    StartCoroutine(Authenticate(GameAPIs.loginAPi, form, phone));
-
-                    //  objRegisterPanel.SetActive(false);
-                }
-                else
-                { }
-
-            }
-
-            request.Dispose();
-        }
+        Application.Quit();
     }
-
 
     #region Logout API
     public void LogOUT()
@@ -348,5 +297,7 @@ public class LoginManager : MonoBehaviour
         public string name;
         public string session;
         public int wallet;
+        public string pass_count;
+
     }
 }

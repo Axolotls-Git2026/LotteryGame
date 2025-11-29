@@ -24,8 +24,8 @@ public class SeriesManager : MonoBehaviour
     public GridManager gridManager;
 
     [Header("Quantity&Points")]
-    public List<GameObject> quantity;
-    public List<GameObject> points;
+    //public List<GameObject> quantity;
+    //public List<GameObject> points;
     public static Action<int, List<int>, List<int>> OnQuantityAdded;
 
 
@@ -59,7 +59,7 @@ public class SeriesManager : MonoBehaviour
             int value = sb.seriesValue; // capture the value
             sb.button.onClick.AddListener(() =>
             {
-                isSingleRangeSelected = true;
+                //  isSingleRangeSelected = true;
                 OnSeriesBtnClicked(value, sb.index);
             });
 
@@ -146,7 +146,7 @@ public class SeriesManager : MonoBehaviour
         }
     }
 
-    private void SetSeries(int seriesBase)
+    public void SetSeries(int seriesBase)
     {
         currentSeriesBase = seriesBase;
         if (!currentSeriesSelected.Contains(currentSeriesBase))
@@ -175,55 +175,76 @@ public class SeriesManager : MonoBehaviour
         OnRangeSelected(currentRangeIndx);
     }
 
-    private void OnSeriesBtnClicked(int seriesBase, int index)
+    public void OnSeriesBtnClicked(int seriesBase, int index)
     {
         foreach (var toggle in seriesToggles)
-        {
             toggle.isOn = false;
-        }
-        currentSeriesSelected.Clear();
-        gridManager.ClearMainInputs();
-        gridManager.ClearBandF();
-        currentSeriesBase = seriesBase;
-        if (!currentSeriesSelected.Contains(currentSeriesBase))
+
+        // ? CORRECT: Update current series for DISPLAY only, but keep multi-selection for data
+        currentSeriesBase = seriesBase; // For UI display
+
+        // Don't clear currentSeriesSelected - it should contain ALL selected series for data purposes
+        // Only ensure the clicked series is selected
+        if (!currentSeriesSelected.Contains(seriesBase))
         {
-            currentSeriesSelected.Add(currentSeriesBase);
+            currentSeriesSelected.Add(seriesBase);
         }
+
+        gridManager.ClearMainInputs();
+       // gridManager.ClearBandF();
+
+        if (currentRangeIndx < 0 || currentRangeIndx >= RangeGrp.Length)
+            currentRangeIndx = 0;
+
+        // Load only for UI display purposes
+        gridManager.LoadGridData(currentSeriesBase, currentRangeIndx);
+        gridManager.UpdateGridNumbers(currentSeriesBase, currentRangeIndx);
+
         seriesToggles[index].isOn = true;
-        // Update RangeGrp labels: (seriesBase + i) * 100 .. +99
+
+        // Update RangeGrp labels
         for (int i = 0; i < RangeGrp.Length; i++)
         {
             int start = (currentSeriesBase + i) * 100;
             int end = start + 99;
-
             var tmp = RangeGrp[i].GetComponentInChildren<TMP_Text>();
             if (tmp != null) tmp.text = $"{start}-{end}";
-            else
-            {
-                var ugui = RangeGrp[i].GetComponentInChildren<TMP_Text>();
-                if (ugui != null) ugui.text = $"{start}-{end}";
-            }
         }
 
-        gridManager.OnValueAddedInGridInputs();
-
-
-
-        // Also refresh grid for currently selected range (assume 0 if none)
         OnRangeSelected(currentRangeIndx);
+
+        // ? CRITICAL: Recalculate from ALL data, not just current series
+        gridManager.RecalculateTotals();
     }
+
+
 
 
 
     void OnSeriesDeselected(int seriesBase)
     {
         currentSeriesSelected.Remove(seriesBase);
+
+        if (currentSeriesBase == seriesBase)
+        {
+            if (currentSeriesSelected.Count > 0)
+            {
+                // pick the first other series from the list
+                currentSeriesBase = currentSeriesSelected[0];
+            }
+            else
+            {
+                // fallback default
+                currentSeriesBase = 10;
+            }
+        }
+
         Debug.Log("series removed for " + seriesBase);
 
     }
 
     public bool isRangeBtnClicked;
-    private void OnRangeSelected(int rangeIndex)
+    public void OnRangeSelected(int rangeIndex)
     {
         if (!currentRangeSelected.Contains(rangeIndex))
         {
@@ -243,64 +264,45 @@ public class SeriesManager : MonoBehaviour
 
         currentRangeIndx = rangeIndex;
 
-        gridManager.isLoading = true;   // ? prevent blank propagation
-        gridManager.LoadGridData(currentSeriesBase, rangeIndex);
+        gridManager.isLoading = true;
+        gridManager.LoadGridData(currentSeriesBase, rangeIndex); // UI display only
         gridManager.UpdateGridNumbers(currentSeriesBase, rangeIndex);
-        gridManager.isLoading = false;  // ? enable propagation back
+        gridManager.isLoading = false;
 
-        gridManager.OnValueAddedInGridInputs();
+        // ? FIX: Use RecalculateTotals instead of OnValueAddedInGridInputs
+        gridManager.RecalculateTotals(); // This uses ALL saved data
     }
 
-
     public bool isSingleRangeSelected;
-    private void OnRangeBtnSelected(int rangeIndex)
+    public void OnRangeBtnSelected(int rangeIndex)
     {
-
-        // gridManager.ClearAll();
-
-        // currentRangeSelected.Clear();
         foreach (var grp in rangeGroups)
         {
             grp.toggle.isOn = false;
         }
-        // Save for all selected series/ranges
-        //foreach (int series in currentSeriesSelected)
-        //{
-        //    foreach (int range in currentRangeSelected)
-        //    {
-        //        gridManager.SaveCurrentGridData(series, range);
-        //    }
-        //}
-        currentRangeSelected.Clear();
+
         gridManager.ClearMainInputs();
-        gridManager.ClearBandF();
+
+        // ? Only clear if you want single range selection, otherwise modify logic
+        // For single range selection (when clicking individual range buttons):
+        currentRangeSelected.Clear();
 
         if (!currentRangeSelected.Contains(rangeIndex))
         {
             currentRangeSelected.Add(rangeIndex);
         }
+
         currentRangeIndx = rangeIndex;
         rangeGroups[rangeIndex].toggle.isOn = true;
-        // currentRangeSelected.Add(rangeIndex);
-        gridManager.isLoading = true;   // ? prevent blank propagation
-        gridManager.LoadGridData(currentSeriesBase, rangeIndex);
-        // seriesBase: 10 ? 1000s, 30 ? 3000s; rangeIndex: which 100-block (0..9)
-        if (gridManager != null)
-            gridManager.UpdateGridNumbers(currentSeriesBase, rangeIndex);
 
-        //Color newColor;
-        //if (ColorUtility.TryParseHtmlString(rangeGrpColorHex[rangeIndex], out newColor))
-        //{
-        //    mainGridBG.GetComponent<Image>().color = newColor;
-        //}
-        //else
-        //{
-        //    Debug.LogWarning("Invalid hex color: " + rangeGrpColorHex[rangeIndex]);
-        //}
+        gridManager.isLoading = true;
+        gridManager.LoadGridData(currentSeriesBase, rangeIndex); // UI display only
+        gridManager.UpdateGridNumbers(currentSeriesBase, rangeIndex);
+        gridManager.isLoading = false;
 
-        gridManager.isLoading = false;   // ? prevent blank propagation
-
+        gridManager.RecalculateTotals(); // Use ALL data
     }
+
 
     private void OnRangeDeselected(int rangeIndex)
     {

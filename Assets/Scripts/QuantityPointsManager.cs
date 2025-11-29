@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class QuantityPointsManager : MonoBehaviour
@@ -15,6 +17,8 @@ public class QuantityPointsManager : MonoBehaviour
     public TMP_Text quantityTotalTxt;
     public TMP_Text PointsTotalTxt;
 
+    public AdvanceTime advanceTime;
+
     private void OnEnable()
     {
         SeriesManager.OnQuantityAdded += OnQuantityAdded;
@@ -22,7 +26,7 @@ public class QuantityPointsManager : MonoBehaviour
 
     private void OnDisable()
     {
-        SeriesManager.OnQuantityAdded += OnQuantityAdded;
+        SeriesManager.OnQuantityAdded -= OnQuantityAdded;
     }
 
     private void Start()
@@ -36,27 +40,47 @@ public class QuantityPointsManager : MonoBehaviour
             points[i].transform.GetChild(0).GetComponent<TMP_Text>().text = "0";
         }
     }
+    void OnDestroy()
+    {
+        SeriesManager.OnQuantityAdded -= OnQuantityAdded;
+    }
 
 
 
     void OnQuantityAdded(int amount, List<int> series, List<int> range)
     {
-        if (!seriesMgr.isSingleRangeSelected)
+        // If a specific range is provided, update only that range
+        if (range != null && range.Count > 0)
         {
-            float aftercalculation;
-            foreach (var indx in range)
+            foreach (var rangeIndex in range)
             {
-                int currentvalue = int.Parse(quantity[indx].transform.GetChild(0).GetComponent<TMP_Text>().text);
-                aftercalculation = (/*currentvalue +*/ amount) * series.Count;
-                quantity[indx].transform.GetChild(0).GetComponent<TMP_Text>().text = aftercalculation.ToString();
-                OnPointsAdded(aftercalculation, series, range);
+                if (rangeIndex >= 0 && rangeIndex < quantity.Count)
+                {
+                    // Update the specific range's quantity
+                    quantity[rangeIndex].transform.GetChild(0).GetComponent<TMP_Text>().text = (amount * advanceTime.selectedTimes.Count).ToString();
+
+                    // Update the specific range's points
+                    float pointsValue = amount * multiplier;
+                    points[rangeIndex].transform.GetChild(0).GetComponent<TMP_Text>().text = (pointsValue * advanceTime.selectedTimes.Count).ToString();
+
+                   // Debug.Log($"[OnQuantityAdded] Range {rangeIndex}: Qty={amount}, Points={pointsValue}");
+                }
+            }
+
+            UpdateFinalTotal();
+        }
+        else
+        {
+            // Fallback: if no range specified, update all ranges with the same value
+            // (This might be your old logic, but should rarely be called now)
+            foreach (var indx in Enumerable.Range(0, quantity.Count))
+            {
+                quantity[indx].transform.GetChild(0).GetComponent<TMP_Text>().text = (amount*series.Count * advanceTime.selectedTimes.Count).ToString();
+                points[indx].transform.GetChild(0).GetComponent<TMP_Text>().text = (amount * multiplier * advanceTime.selectedTimes.Count).ToString();
             }
             UpdateFinalTotal();
         }
-
-
     }
-
 
     void OnPointsAdded(float amount, List<int> series, List<int> range)
     {

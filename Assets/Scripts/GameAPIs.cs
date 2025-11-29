@@ -5,7 +5,7 @@ using UnityEngine;
 public class GameAPIs
 {
 
-    public static string baseUrl = "https://akshay.axolotls.in/lottery_v2/api/";
+    public static string baseUrl = "https://dhanashree.live/api/";
 
 
     public static string loginAPi =
@@ -20,6 +20,19 @@ public class GameAPIs
     public static string fetchHistoryAPi = baseUrl + "fetch/bet_history"; //param  id
     public static string fetchHistoryDetailsAPi = baseUrl + "fetch/show_bets"; //param  id
     public static string cancelBetAPi = baseUrl + "fetch/cancel_bet"; //param  id
+    public static string resetPassAPi = baseUrl + "auth/reset_pass"; //param  id
+    public static string claimPointsAPi = baseUrl + "fetch/claim_points"; //param  id
+
+    public static string fetch3DResultAPi = baseUrl + "fetch/results_3d"; //param  id
+    public static string fetchAll3DResultAPi = baseUrl + "fetch/results_3d_all"; //param  id
+    public static string checkSessionAPi = baseUrl + "fetch/match_user_session"; //param  id
+    public static string playerStatusAPi = baseUrl + "auth/player_status"; //param  id
+
+
+
+    [Header("3D GAME")]
+    public static string submit3DBetAPi = baseUrl + "fetch/submit_bet_3d"; //param  id
+
 
 
 

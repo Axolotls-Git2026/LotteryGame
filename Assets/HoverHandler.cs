@@ -8,8 +8,29 @@ public class HoverHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     public GameObject targetGameObject;
     private Coroutine disableCoroutine;
 
+    private bool isMobile;
+
+    private void Awake()
+    {
+        // Detect if running on Android or iOS
+#if UNITY_ANDROID || UNITY_IOS
+        isMobile = true;
+#else
+        isMobile = false;
+#endif
+    }
+
     public void OnPointerEnter(PointerEventData eventData)
     {
+        if (isMobile)
+        {
+            // On mobile ? just enable immediately
+            if (targetGameObject != null)
+                targetGameObject.SetActive(true);
+            return;
+        }
+
+        // Desktop hover logic
         if (disableCoroutine != null)
         {
             StopCoroutine(disableCoroutine);
@@ -24,30 +45,29 @@ public class HoverHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     public void OnPointerExit(PointerEventData eventData)
     {
+        if (isMobile)
+        {
+            // On mobile ? do nothing (leave enabled until user closes it manually)
+            return;
+        }
+
         if (targetGameObject != null)
         {
-            // Start a coroutine to disable the target after a small delay
-            // This gives the cursor time to enter the target object
+            // Start coroutine to hide after delay
             disableCoroutine = StartCoroutine(DisableWithDelay());
         }
     }
 
     private IEnumerator DisableWithDelay()
     {
-        // Wait for a very short time (e.g., 0.1 seconds)
         yield return new WaitForSeconds(0.1f);
 
-        // Check if the cursor is currently over a UI element.
-        // This is a simple but effective way to ensure the cursor is not on the target object.
         if (!EventSystem.current.IsPointerOverGameObject())
         {
             targetGameObject.SetActive(false);
         }
         else
         {
-            // If the cursor is over a UI element, we'll check again
-            // to see if it's over the target object.
-            // This is a more robust way to handle the logic.
             if (!IsPointerOverTargetObject())
             {
                 targetGameObject.SetActive(false);
@@ -57,7 +77,6 @@ public class HoverHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     private bool IsPointerOverTargetObject()
     {
-        // A more advanced check that confirms if the cursor is over the target UI element.
         PointerEventData pointerData = new PointerEventData(EventSystem.current);
         pointerData.position = Input.mousePosition;
 
@@ -67,9 +86,7 @@ public class HoverHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         foreach (RaycastResult result in results)
         {
             if (result.gameObject == targetGameObject)
-            {
                 return true;
-            }
         }
 
         return false;

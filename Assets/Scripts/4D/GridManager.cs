@@ -1,9 +1,12 @@
 using NUnit.Framework.Constraints;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using static UnityEngine.Rendering.DebugUI.Table;
 
 public class GridManager : MonoBehaviour
 {
@@ -51,16 +54,46 @@ public class GridManager : MonoBehaviour
             for (int c = 0; c < cols; c++)
             {
                 Transform child = layoutGrp.transform.GetChild(index);
+
+                // Skip All_F_Input_Object
+                if (child.name.Contains("All_F_Input_Object"))
+                {
+                    index++;
+                    continue;
+                }
+
                 gridInputs[r, c] = child.gameObject;
                 index++;
             }
         }
     }
 
+
+    private TMP_InputField[,] cachedFields;
+
+public void InitGrid()
+{
+    cachedFields = new TMP_InputField[rows, cols];
+
+    for (int r = 0; r < rows; r++)
+    {
+        for (int c = 0; c < cols; c++)
+        {
+            if (gridInputs[r, c] == null) continue; // skip null slots
+
+            cachedFields[r, c] = gridInputs[r, c].transform
+                .GetChild(1)
+                .GetComponent<TMP_InputField>();
+        }
+    }
+}
+
+
+
     private void Start()
     {
         InitGridTracking();
-
+        InitGrid();
         allNum.isOn = true;
         evenNum.isOn = false;
         oddNum.isOn = false;
@@ -98,14 +131,32 @@ public class GridManager : MonoBehaviour
         {
             for (int c = 0; c < cols; c++)
             {
-                var inputField = gridInputs[r, c].transform.GetChild(1).GetComponent<TMP_InputField>();
+                if (gridInputs[r, c] == null)
+                    continue;
+
+                // Skip unwanted objects by name
+                if (gridInputs[r, c].name.Contains("All_F_Input_Object"))
+                    continue;
+
+                Transform child = gridInputs[r, c].transform;
+                if (child.childCount < 2)
+                    continue;
+
+                var inputField = child.GetChild(1).GetComponent<TMP_InputField>();
+                if (inputField == null)
+                    continue;
+
                 int capturedRow = r;
                 int capturedCol = c;
 
-                inputField.onValueChanged.AddListener(newValue => OnSingleInputChanged(capturedRow, capturedCol, newValue));
-                inputField.onSubmit.AddListener(newValue => OnSingleInputChanged(capturedRow, capturedCol, newValue));
+                inputField.onValueChanged.AddListener(newValue =>
+                    OnSingleInputChanged(capturedRow, capturedCol, newValue));
+
+                inputField.onSubmit.AddListener(newValue =>
+                    OnSingleInputChanged(capturedRow, capturedCol, newValue));
             }
         }
+
 
         allNum.onValueChanged.AddListener((isOn) => HandleToggle(allNum, isOn));
         evenNum.onValueChanged.AddListener((isOn) => HandleToggle(evenNum, isOn));
@@ -116,98 +167,150 @@ public class GridManager : MonoBehaviour
 
     private void OnSingleInputChanged(int r, int c, string newValue)
     {
-        if (isUpdatingInputs)
-        {
-            return;
-        }
-
-        // Stop any previous debounce coroutine to prevent redundant saves
+        if (isUpdatingInputs) return;
+        Debug.Log($"? Validation triggered for [{r},{c}] ? {newValue}");
         if (debounceCoroutine != null)
-        {
             StopCoroutine(debounceCoroutine);
-        }
 
-        // Start a new coroutine that will wait before saving the data
         debounceCoroutine = StartCoroutine(DebounceSave(r, c, newValue));
     }
 
     private IEnumerator DebounceSave(int r, int c, string newValue)
     {
-        // Wait for a short duration after the last input
-        // 0.2f is a good starting point, adjust as needed
-        yield return new WaitForSeconds(0.2f);
+        // Capture the context at the time of typing
+        var seriesSnapshot = new List<int>(seriesManager.currentSeriesSelected);
+        var rangeSnapshot = new List<int>(seriesManager.currentRangeSelected);
 
-        TMP_InputField field = gridInputs[r, c].transform.GetChild(1).GetComponent<TMP_InputField>();
+        yield return new WaitForSeconds(0.1f);
+
+        SaveCell(r, c, newValue, seriesSnapshot, rangeSnapshot);
+
+        // ONLY recalculate totals - don't save grid data again
+        RecalculateTotals();
+        debounceCoroutine = null;
+    }
+
+
+    // =========================
+    // SAVE CELL HELPER
+    // =========================
+    private void SaveCell(int r, int c, string newValue, List<int> seriesSnapshot, List<int> rangeSnapshot)
+    {
+        if (r < 0 || c < 0 || r >= rows || c >= cols) return;
 
         int value = 0;
         if (int.TryParse(newValue, out int parsedValue))
         {
             value = Mathf.Clamp(parsedValue, 0, 999);
-            field.text = value.ToString();
+            Debug.Log("Clamping value to : " + value);
         }
-        else
-        {
-            field.text = "";
-        }
+        Debug.Log($"[SaveCell] Saving value '{value}' at ({r},{c}) for {seriesSnapshot.Count} series and {rangeSnapshot.Count} ranges");
 
-        if (familyToggle.isOn)
+        // Save to all selected series/range combinations
+        foreach (int series in seriesSnapshot)
         {
-            if (int.TryParse(gridInputs[r, c].transform.GetChild(0).GetComponent<TMP_Text>().text, out int baseNumber))
-            {
-                UpdateFamily(baseNumber, field.text);
-            }
-        }
-
-        // Only now, after the debounce, do we perform the expensive operation
-        // The foreach loops are here as per your logic
-        foreach (int series in seriesManager.currentSeriesSelected)
-        {
-            foreach (int range in seriesManager.currentRangeSelected)
+            foreach (int range in rangeSnapshot)
             {
                 UpdateSingleCellData(series, range, r, c, value);
+                Debug.Log($"[SaveCell] Saved to series:{series}, range:{range}");
             }
         }
 
-        RecalculateTotals();
+        // Family logic (if enabled)
+        if (familyToggle != null && familyToggle.isOn)
+        {
+            foreach (int series in seriesSnapshot)
+            {
+                foreach (int range in rangeSnapshot)
+                {
+                    int bettedNum = CalculateNumbers(series, range, r, c);
+                    ApplyFamilyToBettedNumber(bettedNum, value, seriesSnapshot, rangeSnapshot);
+                }
+            }
+        }
 
-        debounceCoroutine = null;
+        Debug.Log($"[SaveCell] r:{r} c:{c} value:{newValue}");
+        // RecalculateTotals() is called by DebounceSave, so don't call it here
     }
 
-    // A new, more efficient helper function to update a single cell
+    private void ApplyFamilyToBettedNumber(int baseNumber, int value, List<int> seriesSnapshot, List<int> rangeSnapshot)
+    {
+        var family = GenerateFamily(baseNumber);
+        if (family == null || family.Count == 0) return;
+
+        bool prevUpdating = isUpdatingInputs;
+        isUpdatingInputs = true;
+
+        string valueStr = value > 0 ? value.ToString() : "";
+
+        // 1) Update UI directly for family numbers
+        foreach (int familyNum in family)
+            UpdateInputForNumber(familyNum, valueStr);
+
+        // 2) Update only the **cells that correspond to these family numbers**
+        foreach (int series in seriesSnapshot)
+        {
+            foreach (int range in rangeSnapshot)
+            {
+                foreach (var cellPos in GetCellsForFamily(series, range, family.ToList()))
+                {
+                    UpdateSingleCellData(series, range, cellPos.row, cellPos.col, value);
+                }
+            }
+        }
+
+        isUpdatingInputs = prevUpdating;
+    }
+
+    // Helper: returns only the positions of cells that match the family numbers
+    private IEnumerable<(int row, int col)> GetCellsForFamily(int series, int range, List<int> family)
+    {
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                int bet = CalculateNumbers(series, range, r, c);
+                if (family.Contains(bet))
+                    yield return (r, c);
+            }
+        }
+    }
+
+
+
+    // =========================
+    // UPDATE SINGLE CELL
+    // =========================
     public void UpdateSingleCellData(int series, int range, int row, int col, int value)
     {
         var key = (series, range);
-        if (!allGridData.ContainsKey(key))
+
+        if (!allGridData.TryGetValue(key, out var gridInputData))
         {
-            allGridData[key] = new Dictionary<(int, int), string>();
+            gridInputData = new Dictionary<(int, int), string>();
+            allGridData[key] = gridInputData;
         }
-
-        var gridInputdata = allGridData[key];
-        gridInputdata[(row, col)] = value.ToString();
-
-        int bettedNum = CalculateNumbers(series, range, row, col);
 
         if (value > 0)
         {
-            // Add or update the bet number
+            gridInputData[(row, col)] = value.ToString();
+
+            int bettedNum = CalculateNumbers(series, range, row, col);
             seriesManager.betNumbers[bettedNum] = value;
-            Debug.Log($"Added/Updated bet number: {bettedNum} with value: {value}.");
+
+            Debug.Log($"Saved {value} for bet {bettedNum} at ({series},{range}) [{row},{col}]");
         }
         else
         {
-            // Remove the bet number
-            seriesManager.betNumbers.Remove(bettedNum);
-            Debug.Log($"Removed bet number: {bettedNum}.");
-        }
+            gridInputData.Remove((row, col));
 
-        // Always debug the current state of the dictionary
-        string dictLog = "Current betNumbers: ";
-        foreach (var kvp in seriesManager.betNumbers)
-        {
-            dictLog += $"[{kvp.Key}:{kvp.Value}] ";
+            int bettedNum = CalculateNumbers(series, range, row, col);
+            seriesManager.betNumbers.Remove(bettedNum);
+
+            Debug.Log($"Removed bet {bettedNum} at ({series},{range}) [{row},{col}]");
         }
-        Debug.Log(dictLog);
     }
+
 
     private void UpdateFamily(int baseNumber, string value)
     {
@@ -473,7 +576,31 @@ public class GridManager : MonoBehaviour
     {
         rowValues = new int?[rows, cols];
         colValues = new int?[rows, cols];
+        CacheGridInputs();
     }
+
+    private TMP_InputField[,] cachedInputs;
+
+    private void CacheGridInputs()
+    {
+        cachedInputs = new TMP_InputField[rows, cols];
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (gridInputs[r, c] == null) // <-- prevent null access
+                    continue;
+
+                if (gridInputs[r, c].name.Contains("All_F_Input_Object"))
+                    continue;
+
+                cachedInputs[r, c] = gridInputs[r, c].transform.GetChild(1).GetComponent<TMP_InputField>();
+            }
+        }
+    }
+
+
+
 
     void UpdateCell(int r, int c)
     {
@@ -526,77 +653,152 @@ public class GridManager : MonoBehaviour
     //    }
     //}
 
-    void FillRow(int rowIndex, string value)
+    private Coroutine saveCoroutine;
+
+    public void FillRow(int rowIndex, string value)
     {
-        Debug.Log("Fill row called");
+        if (isUpdatingInputs) return;
+
         isUpdatingInputs = true;
+
+        // Validate
+        if (rowIndex < 0 || rowIndex >= rows || gridInputs == null)
+        {
+            isUpdatingInputs = false;
+            return;
+        }
+
+        bool hasValue = int.TryParse(value, out int amount);
+        int parsedValue = hasValue ? Mathf.Clamp(amount, 0, 999) : 0;
+
+        // Capture selection context at the start
+        var seriesSnapshot = new List<int>(seriesManager.currentSeriesSelected);
+        var rangeSnapshot = new List<int>(seriesManager.currentRangeSelected);
+
+        // ? Use a list to track saved cells for debugging
+        int savedCellsCount = 0;
 
         for (int c = 0; c < cols; c++)
         {
-            // --- If no value entered ---
-            if (string.IsNullOrEmpty(value))
+            if (gridInputs[rowIndex, c] == null) continue;
+
+            bool shouldFill = false;
+
+            if (hasValue)
             {
-                rowValues[rowIndex, c] = null;
-            }
-            else if (int.TryParse(value, out int amount))
-            {
-                // --- If "All" toggle is ON ---
-                if (allNum != null && allNum.isOn)
-                {
-                    rowValues[rowIndex, c] = amount;
-                }
-                // --- If "Even" toggle is ON (apply only to even columns) ---
-                else if (evenNum != null && evenNum.isOn && c % 2 == 0)
-                {
-                    rowValues[rowIndex, c] = amount;
-                }
-                // --- If "Odd" toggle is ON (apply only to odd columns) ---
-                else if (oddNum!= null && oddNum.isOn && c % 2 != 0)
-                {
-                    rowValues[rowIndex, c] = amount;
-                }
-                // --- If no toggle is ON, clear cells ---
-                else
-                {
-                    rowValues[rowIndex, c] = null;
-                }
+                if (allNum != null && allNum.isOn) shouldFill = true;
+                else if (evenNum != null && evenNum.isOn && c % 2 == 0) shouldFill = true;
+                else if (oddNum != null && oddNum.isOn && c % 2 != 0) shouldFill = true;
             }
 
-            UpdateCell(rowIndex, c);
+            string newValue = shouldFill ? parsedValue.ToString() : "";
+
+            // Update UI
+            TMP_InputField input = gridInputs[rowIndex, c].GetComponentInChildren<TMP_InputField>();
+            if (input != null)
+            {
+                input.SetTextWithoutNotify(newValue);
+            }
+
+            // Update internal values
+            if (rowValues != null && rowIndex < rowValues.GetLength(0) && c < rowValues.GetLength(1))
+            {
+                rowValues[rowIndex, c] = shouldFill ? parsedValue : (int?)null;
+            }
+
+            // Save the cell
+            if (shouldFill)
+            {
+                SaveCellDirect(rowIndex, c, parsedValue, seriesSnapshot, rangeSnapshot);
+                savedCellsCount++;
+            }
+            else
+            {
+                SaveCellDirect(rowIndex, c, 0, seriesSnapshot, rangeSnapshot);
+            }
         }
 
+        // ? Force a small delay to ensure all saves are processed
+        StartCoroutine(DelayedRecalculateWithDebug(savedCellsCount));
+
         isUpdatingInputs = false;
+
+        Debug.Log($"[FillRow] Filled row {rowIndex}, saved {savedCellsCount} cells");
+    }
+
+    private IEnumerator DelayedRecalculateWithDebug(int savedCellsCount)
+    {
+        yield return new WaitForSeconds(0.05f); // Small delay to ensure saves complete
+
+        Debug.Log($"[FillRow] Delayed recalculate after saving {savedCellsCount} cells");
+        RecalculateTotals();
+    }
+
+    // ? Enhanced debug version of SaveCellDirect
+    private void SaveCellDirect(int r, int c, int value, List<int> seriesSnapshot, List<int> rangeSnapshot)
+    {
+        if (r < 0 || c < 0 || r >= rows || c >= cols) return;
+
+        Debug.Log($"[SaveCellDirect] Saving value {value} at ({r},{c}) for {seriesSnapshot.Count} series, {rangeSnapshot.Count} ranges");
+
+        // Save to all selected series/range combinations
+        foreach (int series in seriesSnapshot)
+        {
+            foreach (int range in rangeSnapshot)
+            {
+                Debug.Log($"[SaveCellDirect] Updating series:{series}, range:{range}");
+                UpdateSingleCellData(series, range, r, c, value);
+            }
+        }
+    }
+
+    private IEnumerator DelayedRecalculateTotals()
+    {
+        yield return new WaitForSeconds(0.1f);
+        RecalculateTotals();
+    }
+
+    private IEnumerator DelayedSaveAndTotals()
+    {
+        yield return new WaitForSeconds(0.25f); // 0.2–0.3 sec delay
+
+        if (seriesManager.currentSeriesSelected.Count > 0 &&
+            seriesManager.currentRangeSelected.Count > 0)
+        {
+            foreach (int series in seriesManager.currentSeriesSelected)
+            {
+                foreach (int range in seriesManager.currentRangeSelected)
+                {
+                    SaveCurrentGridData(series, range);
+                }
+            }
+        }
+
+        RecalculateTotals();
+
+        saveCoroutine = null;
     }
 
 
 
 
     void FillColumn(int colIndex, string value)
-
     {
-
         isUpdatingInputs = true;
+
+        bool hasValue = int.TryParse(value, out int amount);
+        int parsedValue = hasValue ? Mathf.Clamp(amount, 0, 999) : 0;
 
         for (int r = 0; r < rows; r++)
         {
+            colValues[r, colIndex] = hasValue ? (int?)parsedValue : null;
 
-            if (string.IsNullOrEmpty(value))
-
-                colValues[r, colIndex] = null;
-
-            else if (int.TryParse(value, out int amount))
-
-                colValues[r, colIndex] = amount;
-
-
-
-            UpdateCell(r, colIndex);
-
+            UpdateCell(r, colIndex); // this will recalc sum with rowValues
         }
 
         isUpdatingInputs = false;
-
     }
+
 
     public void HandleAllToggle()
     {
@@ -692,7 +894,20 @@ public class GridManager : MonoBehaviour
             return;
         }
 
-        StartCoroutine(DelayCall(parsedValue));
+        TrySaveGridData(parsedValue);
+    }
+    private float lastSaveTime = 0f;
+    private const float SaveDelay = 0.1f; // half a second
+
+    public void TrySaveGridData(int parsedValue)
+    {
+        if (parsedValue <= 0 || parsedValue > 999) return;
+
+        if (Time.time - lastSaveTime >= SaveDelay)
+        {
+            lastSaveTime = Time.time;
+            SaveAllCurrentGrids();
+        }
     }
 
     public IEnumerator DelayCall(int parsedValue)
@@ -705,65 +920,90 @@ public class GridManager : MonoBehaviour
                 foreach (int range in seriesManager.currentRangeSelected)
                 {
                     SaveCurrentGridData(series, range);
-                 //   Debug.Log("Saving");
+                    //   Debug.Log("Saving");
                 }
             }
         }
     }
 
+    Dictionary<(int series, int range), Dictionary<(int row, int col), string>> lastGridValues = new Dictionary<(int series, int range), Dictionary<(int row, int col), string>>();
+
+
     public void SaveCurrentGridData(int series, int range)
     {
         var key = (series, range);
-        Debug.Log("Saved key : " + key + " For series : " + series + " range : " + range );
-        // ? FIX: Instead of clearing the whole dictionary,
-        // we manage the data for this specific key.
-        if (!allGridData.ContainsKey(key))
+
+        // outer dictionary: all grids
+        if (!allGridData.TryGetValue(key, out var gridInputData))
         {
-            allGridData[key] = new Dictionary<(int, int), string>();
+            gridInputData = new Dictionary<(int, int), string>();
+            allGridData[key] = gridInputData;
         }
 
-        // Clear only the specific dictionary for the current series/range
-        var gridInputdata = allGridData[key];
-      //  gridInputdata.Clear();
+        // ensure last values dictionary exists for this series+range
+        if (!lastGridValues.TryGetValue(key, out var lastValuesForGrid))
+        {
+            lastValuesForGrid = new Dictionary<(int, int), string>();
+            lastGridValues[key] = lastValuesForGrid;
+        }
 
         for (int row = 0; row < rows; row++)
         {
             for (int col = 0; col < cols; col++)
             {
-                var textField = gridInputs[row, col].transform.GetChild(1).GetComponent<TMP_InputField>();
-                string text = textField.text;
+                string newValue = cachedFields[row, col].text;
 
-                if (!string.IsNullOrEmpty(text))
+                // skip if unchanged (but now per-series+range)
+                if (lastValuesForGrid.TryGetValue((row, col), out var oldValue) && oldValue == newValue)
+                    continue;
+
+                // update cache
+                lastValuesForGrid[(row, col)] = newValue;
+
+                if (!string.IsNullOrEmpty(newValue) &&
+                    int.TryParse(newValue, out int val) && val >= 0 && val <= 999)
                 {
-                    if (int.TryParse(text, out int val) && val >= 0 && val <= 999)
-                    {
-                        gridInputdata[(row, col)] = text;
-                        int bettedNum = CalculateNumbers(series, range, row, col);
+                    gridInputData[(row, col)] = newValue;
 
-                        if (seriesManager.betNumbers.ContainsKey(bettedNum))
-                        {
-                            seriesManager.betNumbers[bettedNum] = val;
-                        }
-                        else
-                        {
-                            seriesManager.betNumbers.Add(bettedNum, val);
-                          //  Debug.Log("Number : " + bettedNum + " Added to dictionary : " + "with value : " + val);
+                    int bettedNum = CalculateNumbers(series, range, row, col);
+                    seriesManager.betNumbers[bettedNum] = val;
 
-                        }
-
-                    }
-                    // Debug the dictionary contents
-                    string dictLog = "Current betNumbers: ";
-                    foreach (var kvp in seriesManager.betNumbers)
-                    {
-                        dictLog += $"[{kvp.Key} : {kvp.Value}] ";
-                    }
-                   // Debug.Log("Current bet nums : " + dictLog);
+                    Debug.Log($"Saving: {bettedNum} at series:{series}, range:{range}, row:{row}, col:{col}");
                 }
+                else
+                {
+                    gridInputData.Remove((row, col));
+                }
+            }
+        }
+        // RecalculateTotals();
+    }
+
+    private void SaveAllCurrentGrids()
+    {
+        foreach (var series in seriesManager.currentSeriesSelected)
+        {
+            foreach (var range in seriesManager.currentRangeSelected)
+            {
+                SaveCurrentGridData(series, range);
             }
         }
     }
 
+    public void SaveCellData(int series, int range, int row, int col, int val)
+    {
+        var key = (series, range);
+
+        if (!allGridData.ContainsKey(key))
+        {
+            allGridData[key] = new Dictionary<(int, int), string>();
+        }
+
+        allGridData[key][(row, col)] = val.ToString();
+
+        int bettedNum = CalculateNumbers(series, range, row, col);
+        seriesManager.betNumbers[bettedNum] = val;
+    }
 
 
     public int CalculateNumbers(int series, int range, int row, int col)
@@ -777,80 +1017,260 @@ public class GridManager : MonoBehaviour
     public void LoadGridData(int series, int range)
     {
         var key = (series, range);
-        Debug.Log("Loading data for key : " + key + " For series : " + series + " range : " + range);
-        if (!allGridData.ContainsKey(key))
-        {
+        if (!allGridData.TryGetValue(key, out var gridInputsData))
             return;
-        }
-        Debug.Log("Return for loading grid data not found");
 
-        isUpdatingInputs = true;
+        isUpdatingInputs = true; // ?? Prevent OnValueChanged firing
+
+        // Clear grid first
         for (int row = 0; row < rows; row++)
         {
             for (int col = 0; col < cols; col++)
             {
                 var textField = gridInputs[row, col].transform.GetChild(1).GetComponent<TMP_InputField>();
-                textField.text = "";
+                textField.SetTextWithoutNotify(""); // ? Important!
             }
         }
 
-        var gridInputsdata = allGridData[key];
-        if(gridInputsdata.Keys.Count == 0)
-        {
-            Debug.Log("Grid Input data is null");
-        }
-        foreach (var kvp in gridInputsdata)
+        // Fill from saved data
+        foreach (var kvp in gridInputsData)
         {
             int row = kvp.Key.Item1;
             int col = kvp.Key.Item2;
             string value = kvp.Value;
 
             var textField = gridInputs[row, col].transform.GetChild(1).GetComponent<TMP_InputField>();
-            textField.text = value;
-            Debug.Log($"Loaded series range :  ({series},{range}) at {row},{col} with value : {value}");
+            textField.SetTextWithoutNotify(value); // ? No event triggered
         }
-        isUpdatingInputs = false;
 
-        // ? NEW: Add this call to ensure totals are updated after loading a saved grid
-        RecalculateTotals();
+        isUpdatingInputs = false; // ?? Re-enable input change
+
+         RecalculateTotals();
     }
+
+
 
     void CalculationLogic(int value)
     {
     }
 
-    // ? REFACTORED: Renamed from OnValueAddedInGridInputs to a more descriptive name
-    // and made it public so other methods can call it.
     public void RecalculateTotals()
     {
-        int value;
-        int finalValue = 0;
-        foreach (var obj in gridInputs)
+        if (isUpdatingInputs) return;
+
+        // Always calculate from ALL saved data, regardless of current selection
+        Dictionary<int, int> quantitiesPerRange = new Dictionary<int, int>();
+        Dictionary<int, int> pointsPerRange = new Dictionary<int, int>();
+
+        // Initialize all ranges to 0
+        for (int range = 0; range < 10; range++)
         {
-            if (int.TryParse(obj.transform.GetChild(1).GetComponent<TMP_InputField>().text, out value))
+            quantitiesPerRange[range] = 0;
+            pointsPerRange[range] = 0;
+        }
+
+        // ? CRITICAL: Iterate through ALL saved data, not just current selection
+        foreach (var kvp in allGridData)
+        {
+            int series = kvp.Key.series;
+            int range = kvp.Key.range;
+            var gridData = kvp.Value;
+
+            foreach (var cell in gridData)
             {
-                finalValue += value;
-            }
-            if (finalValue == 0)
-            {
-                obj.transform.GetChild(1).GetComponent<TMP_InputField>().text = "";
+                if (int.TryParse(cell.Value, out int value))
+                {
+                    quantitiesPerRange[range] += value;
+                    // pointsPerRange[range] += CalculatePoints(value);
+                }
             }
         }
-        SeriesManager.OnQuantityAdded?.Invoke(finalValue, seriesManager.currentSeriesSelected, seriesManager.currentRangeSelected);
+
+        // Notify with quantities for EACH range (across all series)
+        foreach (var rangeQuantity in quantitiesPerRange)
+        {
+            int range = rangeQuantity.Key;
+            int quantity = rangeQuantity.Value;
+            int points = pointsPerRange[range];
+
+            SeriesManager.OnQuantityAdded?.Invoke(quantity, new List<int>(), new List<int> { range });
+        }
+
+        Debug.Log($"[RecalculateTotals] Calculated from ALL saved data");
     }
+    public void ResetGame()
+    {
+
+        // 4. Reset quantity/points for all series & ranges
+        if (SeriesManager.OnQuantityAdded != null)
+        {
+            // Assuming you know the total series and ranges possible
+            int totalSeries = 10; // replace with actual total series count
+            int totalRanges = 10; // replace with actual total ranges count
+
+            for (int s = 0; s < totalSeries; s++)
+            {
+                for (int r = 0; r < totalRanges; r++)
+                {
+                    SeriesManager.OnQuantityAdded.Invoke(0, new List<int> { s }, new List<int> { r });
+                }
+            }
+        }
+
+
+        Debug.Log("Game reset complete.");
+    }
+
 
     public void ClearAll()
     {
-        seriesManager.ClearAllSeriesAndRange();
+       // var toastManager = FindAnyObjectByType<ToastManager>();
+        //if (toastManager != null && toastManager.transform.parent == null)
+        //{
+          //  toastManager.transform.SetParent(GameManager.instance.toasterHolderObj.transform);
+            // Only mark once, otherwise Unity will complain if it's already in DontDestroyOnLoad
+           // DontDestroyOnLoad(toastManager.gameObject);
+
+       // }
+
+        ToastManager.Instance.ShowToast("Cleared");
+
+        StartCoroutine(LoadSceneDelay());
+    }
+
+    IEnumerator LoadSceneDelay()
+    {
+        yield return new WaitForSeconds(0.5f);
+
+        SceneManager.LoadSceneAsync(1);
+    }
+
+
+    public void ResetGameCompletely()
+    {
+        // 1. Stop all coroutines first
+        StopAllCoroutines();
+
+        // 2. Set loading/clearing flags
+        isLoading = true;
+
+        // 3. Clear all data storage
+        allGridData.Clear();
+        seriesManager.betNumbers.Clear();
+
+        // 4. Clear all UI inputs
         ClearMainInputs();
-        ClearStoredDataFromDictionary();
-        // Assuming GameManager and ToastManager exist
-        GameManager.instance.qntypointsMgr.ClearData();
         ClearBandF();
+
+        // 5. Reset series and range selections safely
+        seriesManager.currentSeriesSelected.Clear();
+        seriesManager.currentRangeSelected.Clear();
+
+        //// Remove toggle listeners temporarily to prevent events
+        //foreach (var toggle in seriesManager.seriesToggles)
+        //{
+        //    if (toggle != null) toggle.onValueChanged.RemoveAllListeners();
+        //}
+        //foreach (var rangeGroup in seriesManager.rangeGroups)
+        //{
+        //    if (rangeGroup.toggle != null) rangeGroup.toggle.onValueChanged.RemoveAllListeners();
+        //}
+
+        // Set all toggles to false
+        foreach (var toggle in seriesManager.seriesToggles)
+        {
+            if (toggle != null) toggle.isOn = false;
+        }
+        foreach (var rangeGroup in seriesManager.rangeGroups)
+        {
+            if (rangeGroup.toggle != null) rangeGroup.toggle.isOn = false;
+        }
+
+        // Set default selections
+        seriesManager.currentSeriesSelected.Add(10);
+        seriesManager.currentRangeSelected.Add(0);
+        seriesManager.currentSeriesBase = 10;
+        seriesManager.currentRangeIndx = 0;
+
+        // Set default toggles on
+        if (seriesManager.seriesToggles.Count > 0 && seriesManager.seriesToggles[0] != null)
+            seriesManager.seriesToggles[0].isOn = true;
+        if (seriesManager.rangeGroups.Count > 0 && seriesManager.rangeGroups[0].toggle != null)
+            seriesManager.rangeGroups[0].toggle.isOn = true;
+
+        // 6. Reset grid numbers
+        UpdateGridNumbers(10, 0);
+
+        // 7. Reset toggles and UI states
         HandleAllToggle();
-        GameManager.instance.advnceTime.ClearAdvanceTimeData();
-        familyToggle.isOn = false;
-        SoundManager.Instance.PlaySound(SoundManager.Instance.commonSound);
+        if (familyToggle != null) familyToggle.isOn = false;
+
+        // 8. Clear external managers
+        if (GameManager.instance != null)
+        {
+            if (GameManager.instance.qntypointsMgr != null)
+                GameManager.instance.qntypointsMgr.ClearData();
+            if (GameManager.instance.advnceTime != null)
+                GameManager.instance.advnceTime.ClearAdvanceTimeData();
+        }
+
+        // 9. Reset quantities and points to zero for all ranges
+        for (int range = 0; range < 10; range++)
+        {
+            SeriesManager.OnQuantityAdded?.Invoke(0, new List<int>(), new List<int> { range });
+        }
+
+        // 10. Reload empty grid data
+        LoadGridData(10, 0);
+
+        // 11. Reset flags
+        isLoading = false;
+
+        // 12. Play sound
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.PlaySound(SoundManager.Instance.commonSound);
+
+        // 13. Show confirmation
+        //if (ToastManager.Instance != null)
+        //    ToastManager.Instance.ShowToast("Game Reset Complete");
+        seriesManager.OnRangeBtnSelected(0);
+        seriesManager.OnSeriesBtnClicked(10, 0);
+        Debug.Log("Game completely reset");
+    }
+
+    private IEnumerator ReAddToggleListenersAfterFrame()
+    {
+        yield return new WaitForEndOfFrame();
+
+        // Re-add series toggle listeners
+        for (int i = 0; i < seriesManager.seriesToggles.Count; i++)
+        {
+            if (seriesManager.seriesToggles[i] != null)
+            {
+                int index = i; // ? Capture the current value
+                int seriesValue = seriesManager.seriesValues[index]; // ? Get the value now
+
+                seriesManager.seriesToggles[i].onValueChanged.RemoveAllListeners();
+                seriesManager.seriesToggles[i].onValueChanged.AddListener((isOn) =>
+                {
+                    if (!isLoading) seriesManager.SetSeries(seriesValue); // ? Use captured value
+                });
+            }
+        }
+
+        // Re-add range toggle listeners
+        for (int i = 0; i < seriesManager.rangeGroups.Count; i++)
+        {
+            if (seriesManager.rangeGroups[i].toggle != null)
+            {
+                int index = i;
+                seriesManager.rangeGroups[i].toggle.onValueChanged.RemoveAllListeners();
+                seriesManager.rangeGroups[i].toggle.onValueChanged.AddListener((isOn) =>
+                {
+                    if (!isLoading) seriesManager.OnRangeSelected(index);
+                });
+            }
+        }
     }
     public void ClearPopup()
     {
@@ -862,9 +1282,11 @@ public class GridManager : MonoBehaviour
     {
         foreach (var obj in gridInputs)
         {
-            obj.transform.GetChild(1).GetComponent<TMP_InputField>().text = "";
+            var input = obj.transform.GetChild(1).GetComponent<TMP_InputField>();
+            input.SetTextWithoutNotify("");   // ? clears without firing OnValueChanged
         }
     }
+
 
     public void ClearSeries()
     {
@@ -880,7 +1302,7 @@ public class GridManager : MonoBehaviour
     {
         allGridData.Clear();
         seriesManager.betNumbers.Clear();
-       //  ToastManager.Instance.ShowToast("Cleared");
+        //  ToastManager.Instance.ShowToast("Cleared");
     }
     public void OnValueAddedInGridInputs()
     {
