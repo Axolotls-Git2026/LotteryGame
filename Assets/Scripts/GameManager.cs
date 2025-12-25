@@ -32,6 +32,7 @@ public class GameManager : MonoBehaviour
     public QuantityPointsManager qntypointsMgr;
     public TimeIncrementer incrementer;
     public AdvanceTime advnceTime;
+    public HistoryFetcher historyFetcher;
     public Button buybtn;
 
     [Header("Game Data")]
@@ -66,6 +67,18 @@ public class GameManager : MonoBehaviour
         StartCoroutine(FetchUserData());
 
     }
+
+    private void OnApplicationFocus(bool focus)
+    {
+        if(focus)
+        {
+            StartCoroutine(FetchUserData());
+            GetTimer();
+            StartCoroutine(FetchResultsOnStart());
+
+        }
+    }
+
     private void Start()
     {
         Screen.orientation = ScreenOrientation.LandscapeLeft;
@@ -553,7 +566,7 @@ public class GameManager : MonoBehaviour
             }
 
             // Play noMoreBets once at 10 seconds
-            if (currentMinutes == 0 && currentSeconds == 10 && !noMoreBetsPlayed)
+            if (currentMinutes == 0 && currentSeconds == 30 && !noMoreBetsPlayed)
             {
                 buybtn.interactable = false;
                 SoundManager.Instance.PlaySound(SoundManager.Instance.noMoreBets);

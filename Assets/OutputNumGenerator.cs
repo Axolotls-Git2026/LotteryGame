@@ -117,16 +117,63 @@ public class OutputNumGenerator : MonoBehaviour
 
         string input = inputField.text.Trim();
 
-        //  Validation: must be exactly 3 digits and numeric
-        if (input.Length != 3 || !int.TryParse(input, out _))
+        // Numeric check
+        if (!int.TryParse(input, out _))
         {
-            Debug.LogWarning("Please enter a valid 3-digit number.");
+            Debug.LogWarning("Please enter a numeric value.");
             return;
         }
-        inputField.text = "";
-        // Pass validated input to the main GenerateResults(string)
-        GenerateResults(input);
+
+        bool fpOn = frontPairToggle != null && frontPairToggle.isOn;
+        bool bpOn = backPairToggle != null && backPairToggle.isOn;
+
+        // Any toggle OTHER than FP / BP
+        bool otherToggleOn =
+            (straightToggle != null && straightToggle.isOn) ||
+            (boxToggle != null && boxToggle.isOn) ||
+            (splitPairToggle != null && splitPairToggle.isOn) ||
+            (anyPairToggle != null && anyPairToggle.isOn);
+
+        // -----------------------------
+        // ?? Case 1: 2-digit input
+        // -----------------------------
+        if (input.Length == 2)
+        {
+            // Must be ONLY FP / BP
+            if (!fpOn && !bpOn)
+            {
+                Debug.LogWarning("2-digit input is allowed only for Front Pair or Back Pair.");
+                return;
+            }
+
+            if (otherToggleOn)
+            {
+                Debug.LogWarning("3-digit input is required when other play types are selected.");
+                return;
+            }
+
+            inputField.text = "";
+            GenerateResults(input);
+            return;
+        }
+
+        // -----------------------------
+        // ?? Case 2: 3-digit input
+        // -----------------------------
+        if (input.Length == 3)
+        {
+            inputField.text = "";
+            GenerateResults(input);
+            return;
+        }
+
+        // -----------------------------
+        // ?? Invalid length
+        // -----------------------------
+        Debug.LogWarning("Please enter a valid 2 or 3 digit number.");
     }
+
+
 
 
     //  Overload 2: Accepts string directly (for range generator)
@@ -134,46 +181,100 @@ public class OutputNumGenerator : MonoBehaviour
     {
         string input = txt.Trim();
 
-        if (input.Length != 3 || !int.TryParse(input, out _))
+        bool isNumeric = int.TryParse(input, out _);
+
+        // -------------------------------
+        // ?? CASE 1: 2-digit FP / BP only
+        // -------------------------------
+        if (input.Length == 2 && isNumeric)
+        {
+
+
+            // Only allowed if FP or BP is selected
+            if ((frontPairToggle != null && frontPairToggle.isOn) ||
+                (backPairToggle != null && backPairToggle.isOn))
+            {
+                var results = new List<(string type, string number)>();
+
+                void Add2DigitResult(Toggle toggle, string type, string number)
+                {
+                    if (toggle != null && toggle.isOn)
+                    {
+                        results.Add((type, number));
+                        ptsManager.AddBet(type, activeRate, 1);
+
+                        if (AToggle != null && AToggle.isOn)
+                            AddToList("A", type, number, activeRate);
+
+                        if (BToggle != null && BToggle.isOn)
+                            AddToList("B", type, number, activeRate);
+
+                        if ((AToggle != null && !AToggle.isOn) &&
+                            (BToggle != null && !BToggle.isOn))
+                        {
+                            AddToList("A", type, number, activeRate);
+                        }
+                    }
+                }
+
+                // ?? Generate FP & BP from same 2-digit number
+                Add2DigitResult(frontPairToggle, "FP", input);
+                Add2DigitResult(backPairToggle, "BP", input);
+
+                // Spawn prefabs
+                foreach (var (type, number) in results)
+                {
+                    GameObject obj = Instantiate(resultPrefab, resultsParent);
+                    obj.transform.GetChild(1).GetComponent<TMP_Text>().text = type;
+                    obj.transform.GetChild(2).GetComponent<TMP_Text>().text = number;
+
+                    obj.GetComponent<ResultPrefab>().number = number;
+                    obj.GetComponent<ResultPrefab>().type = type;
+                    obj.GetComponent<ResultPrefab>().amount = activeRate;
+                }
+
+                return; // ? stop here, don't run 3-digit logic
+            }
+
+            Debug.LogWarning("2-digit input allowed only for Front Pair or Back Pair.");
+            return;
+        }
+
+        // -------------------------------
+        // ?? CASE 2: Normal 3-digit logic
+        // -------------------------------
+        if (input.Length != 3 || !isNumeric)
         {
             Debug.LogWarning("Please enter a valid 3-digit number.");
             return;
         }
 
-
         string d1 = input[0].ToString();
         string d2 = input[1].ToString();
         string d3 = input[2].ToString();
 
-        var results = new List<(string type, string number)>();
+        var results3 = new List<(string type, string number)>();
 
         void AddResult(Toggle toggle, string type, string number)
         {
             if (toggle != null && toggle.isOn)
             {
-                results.Add((type, number));
+                results3.Add((type, number));
                 ptsManager.AddBet(type, activeRate, 1);
 
-                // --- Store bets into A or B ---
                 if (AToggle != null && AToggle.isOn)
-                {
                     AddToList("A", type, number, activeRate);
-                }
 
                 if (BToggle != null && BToggle.isOn)
-                {
                     AddToList("B", type, number, activeRate);
-                }
 
-                // Optional: if neither A nor B is selected, default to A
-                if ((AToggle != null && !AToggle.isOn) && (BToggle != null && !BToggle.isOn))
+                if ((AToggle != null && !AToggle.isOn) &&
+                    (BToggle != null && !BToggle.isOn))
                 {
                     AddToList("A", type, number, activeRate);
                 }
             }
         }
-
-
 
         // Single plays
         AddResult(straightToggle, "STR", input);
@@ -182,47 +283,25 @@ public class OutputNumGenerator : MonoBehaviour
         AddResult(backPairToggle, "BP", d2 + d3);
         AddResult(splitPairToggle, "SP", d1 + d3);
 
-        // Any Pair (special case)
+        // Any Pair
         if (anyPairToggle != null && anyPairToggle.isOn)
         {
-            results.Add(("AP", d1 + d2));
-            results.Add(("AP", d2 + d3));
-            results.Add(("AP", d1 + d3));
+            results3.Add(("AP", d1 + d2));
+            results3.Add(("AP", d2 + d3));
+            results3.Add(("AP", d1 + d3));
             ptsManager.AddBet("AP", activeRate, 3);
         }
 
         // Spawn prefabs
-        foreach (var (type, number) in results)
+        foreach (var (type, number) in results3)
         {
             GameObject obj = Instantiate(resultPrefab, resultsParent);
             obj.transform.GetChild(1).GetComponent<TMP_Text>().text = type;
             obj.transform.GetChild(2).GetComponent<TMP_Text>().text = number;
 
-            string capturedType = type;
-            string capturedNumber = number;
-            int capturedAmount = activeRate;
             obj.GetComponent<ResultPrefab>().number = number;
             obj.GetComponent<ResultPrefab>().type = type;
-            obj.GetComponent<ResultPrefab>().amount = capturedAmount;
-            Button btn = obj.transform.GetChild(0).GetComponent<Button>();
-            btn.onClick.AddListener(() =>
-            {
-                // Remove from betData.A
-                var entryA = betData.A.Find(e => e.Type == capturedType && e.Number == capturedNumber && e.Amount == capturedAmount);
-                if (entryA != null) betData.A.Remove(entryA);
-
-                // Remove from betData.B
-                var entryB = betData.B.Find(e => e.Type == capturedType && e.Number == capturedNumber && e.Amount == capturedAmount);
-                if (entryB != null) betData.B.Remove(entryB);
-
-                // Optional: also update QntyPointsManager (subtract points)
-                ptsManager.totalPoints -= capturedAmount;
-                ptsManager.totalPointsTxt.text = ptsManager.totalPoints.ToString();
-
-                ptsManager.RemoveBet(capturedType, capturedAmount);
-                Destroy(obj);
-
-            });
+            obj.GetComponent<ResultPrefab>().amount = activeRate;
         }
     }
 

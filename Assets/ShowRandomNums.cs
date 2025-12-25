@@ -60,6 +60,8 @@ public class ShowRandomNums : MonoBehaviour
         this.gameObject.SetActive(false);
        GameManager.instance.buybtn.interactable = true;
         GameManager.instance.GetTimer();
+        StartCoroutine(GameManager.instance.historyFetcher.FetchHistory());
+      
     }
 
     private void UpdateListWithRandom(GameObject[] list, int[] prefixes)

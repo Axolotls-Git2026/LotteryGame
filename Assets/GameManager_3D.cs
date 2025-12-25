@@ -65,7 +65,16 @@ public class GameManager_3D : MonoBehaviour
     {
         StartCoroutine(FetchUserData());
     }
+    private void OnApplicationFocus(bool focus)
+    {
+        if (focus)
+        {
+            StartCoroutine(FetchUserData());
+            GetTimer();
+            StartCoroutine(FetchResultsOnStart());
 
+        }
+    }
     private void Start()
     {
         Screen.orientation = ScreenOrientation.LandscapeLeft;
@@ -311,15 +320,6 @@ public class GameManager_3D : MonoBehaviour
         }
     }
 
-    private void OnApplicationFocus(bool focus)
-    {
-        if (focus)
-        {
-            GetTimer();
-            StartCoroutine(FetchUserData());
-
-        }
-    }
     // Shuffle coroutine
     private IEnumerator ShuffleTexts(TMP_Text[] list1, TMP_Text[] list2, float duration)
     {

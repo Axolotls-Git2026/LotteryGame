@@ -52,6 +52,7 @@ public class DetailData
     public string bet_type;
     public string game;
     public string group_key;
+    public string status;
 }
 
 
@@ -86,7 +87,7 @@ public class HistoryFetcher : MonoBehaviour
         StartCoroutine(FetchHistory());
     }
 
-    IEnumerator FetchHistory()
+    public IEnumerator FetchHistory()
     {
         foreach (Transform child in content)
         {
@@ -98,7 +99,7 @@ public class HistoryFetcher : MonoBehaviour
         if (SceneManager.GetActiveScene().name.Contains("3D"))
         {
             form.AddField("game_type", "3D");
-        GameManager_3D.instance.loadingObj.gameObject.SetActive(true);
+            GameManager_3D.instance.loadingObj.gameObject.SetActive(true);
         }
         else
         {
@@ -235,7 +236,7 @@ public class HistoryFetcher : MonoBehaviour
                             SetText(item.transform.GetChild(4), entry.draw_time);
                             SetText(item.transform.GetChild(5), entry.play_point);
                             SetText(item.transform.GetChild(6), entry.claim_point);
-                         
+
                             // Assuming your button is at index 9
                             Button detailsButton = item.transform.GetChild(9).GetComponent<Button>();
                             if (detailsButton != null)
@@ -243,7 +244,7 @@ public class HistoryFetcher : MonoBehaviour
                                 // This line sets up the button click event
                                 detailsButton.onClick.AddListener(() => StartCoroutine(FetchDetailsAPI(entry.barcode)));
                             }
-                      
+
 
 
                         }
@@ -266,7 +267,7 @@ public class HistoryFetcher : MonoBehaviour
                             {
                                 cancelBtn.GetComponent<Image>().color = colorActive;
                             }
-                           else if (entry.status == "cancelled")
+                            else if (entry.status == "cancelled")
                             {
                                 cancelBtn.GetComponent<Image>().color = colorCancelled;
                             }
@@ -338,12 +339,12 @@ public class HistoryFetcher : MonoBehaviour
                     }
                     if (SceneManager.GetActiveScene().name.Contains("3D"))
                     {
-                      
+
                         GameManager_3D.instance.loadingObj.gameObject.SetActive(false);
                     }
                     else
                     {
-                      
+
                         GameManager.instance.loadingObj.gameObject.SetActive(false);
 
                     }
@@ -397,6 +398,7 @@ public class HistoryFetcher : MonoBehaviour
                             SetText(detailItem3d.transform.GetChild(2), detail.amount);
                             SetText(detailItem3d.transform.GetChild(3), detail.bet_type);
                             SetText(detailItem3d.transform.GetChild(4), detail.group_key);
+                            SetText(detailItem3d.transform.GetChild(5), detail.status);
                         }
                         else
                         {
@@ -410,6 +412,7 @@ public class HistoryFetcher : MonoBehaviour
                             SetText(detailItem.transform.GetChild(1), (int.Parse(detail.amount) * 2).ToString());
                             SetText(detailItem.transform.GetChild(2), detail.amount);
                             SetText(detailItem.transform.GetChild(3), detail.orderid);
+                            SetText(detailItem.transform.GetChild(4), detail.status);
                         }
                     }
 
