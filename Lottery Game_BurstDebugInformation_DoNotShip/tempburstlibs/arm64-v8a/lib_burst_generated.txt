@@ -1,4 +1,4 @@
-Library: D:\UNITY Projects\LotteryGame\LotteryGame\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
+Library: D:\LotteryGameNewVersion1\LotteryGameNewVersion\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
 --platform=Android
 --backend=burst-llvm-18
 --target=ARMV8A_AARCH64
@@ -8,10 +8,10 @@ Library: D:\UNITY Projects\LotteryGame\LotteryGame\Temp\BurstOutput\tempburstlib
 --float-precision=Standard
 --target-framework=NetFramework
 --generate-link-xml=Temp\burst.link.xml
---temp-folder=D:\UNITY Projects\LotteryGame\LotteryGame\Temp\Burst
---key-folder=H:/Unity/6000.0.48f1/Editor/Data/PlaybackEngines/AndroidPlayer
---decode-folder=D:\UNITY Projects\LotteryGame\LotteryGame\Library\Burst
---output=D:\UNITY Projects\LotteryGame\LotteryGame\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
+--temp-folder=D:\LotteryGameNewVersion1\LotteryGameNewVersion\Temp\Burst
+--key-folder=C:/Program Files/Unity/Hub/Editor/6000.0.49f1/Editor/Data/PlaybackEngines/AndroidPlayer
+--decode-folder=D:\LotteryGameNewVersion1\LotteryGameNewVersion\Library\Burst
+--output=D:\LotteryGameNewVersion1\LotteryGameNewVersion\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
 
 --method=UnityEngine.Rendering.Universal.ShadowUtility, Unity.RenderPipelines.Universal.2D.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::GetVertexReferenceStats(Unity.Collections.NativeArray`1[[UnityEngine.Vector3, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]&, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null|Unity.Collections.NativeArray`1[[UnityEngine.Rendering.Universal.ShadowEdge, Unity.RenderPipelines.Universal.2D.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]&, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null|System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.Boolean&, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.Int32&, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|Unity.Collections.NativeArray`1[[UnityEngine.Rendering.Universal.ShadowUtility+RemappingInfo, Unity.RenderPipelines.Universal.2D.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]&, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null)--988a40d3aa93620eb189303886118f02
@@ -34,10 +34,10 @@ Library: D:\UNITY Projects\LotteryGame\LotteryGame\Temp\BurstOutput\tempburstlib
 --target-framework=NetFramework
 --float-mode=Fast
 --generate-link-xml=Temp\burst.link.xml
---temp-folder=D:\UNITY Projects\LotteryGame\LotteryGame\Temp\Burst
---key-folder=H:/Unity/6000.0.48f1/Editor/Data/PlaybackEngines/AndroidPlayer
---decode-folder=D:\UNITY Projects\LotteryGame\LotteryGame\Library\Burst
---output=D:\UNITY Projects\LotteryGame\LotteryGame\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
+--temp-folder=D:\LotteryGameNewVersion1\LotteryGameNewVersion\Temp\Burst
+--key-folder=C:/Program Files/Unity/Hub/Editor/6000.0.49f1/Editor/Data/PlaybackEngines/AndroidPlayer
+--decode-folder=D:\LotteryGameNewVersion1\LotteryGameNewVersion\Library\Burst
+--output=D:\LotteryGameNewVersion1\LotteryGameNewVersion\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
 
 --method=Unity.Jobs.IJobForExtensions+ForJobStruct`1[[UnityEngine.Rendering.Universal.ZBinningJob, Unity.RenderPipelines.Universal.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]], UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::Execute(UnityEngine.Rendering.Universal.ZBinningJob&, Unity.RenderPipelines.Universal.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|Unity.Jobs.LowLevel.Unsafe.JobRanges&, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null|System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089)--77fc393cb521ac129b1392d4eb94d29a
@@ -51,10 +51,10 @@ Library: D:\UNITY Projects\LotteryGame\LotteryGame\Temp\BurstOutput\tempburstlib
 --float-precision=Standard
 --target-framework=NetFramework
 --generate-link-xml=Temp\burst.link.xml
---temp-folder=D:\UNITY Projects\LotteryGame\LotteryGame\Temp\Burst
---key-folder=H:/Unity/6000.0.48f1/Editor/Data/PlaybackEngines/AndroidPlayer
---decode-folder=D:\UNITY Projects\LotteryGame\LotteryGame\Library\Burst
---output=D:\UNITY Projects\LotteryGame\LotteryGame\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
+--temp-folder=D:\LotteryGameNewVersion1\LotteryGameNewVersion\Temp\Burst
+--key-folder=C:/Program Files/Unity/Hub/Editor/6000.0.49f1/Editor/Data/PlaybackEngines/AndroidPlayer
+--decode-folder=D:\LotteryGameNewVersion1\LotteryGameNewVersion\Library\Burst
+--output=D:\LotteryGameNewVersion1\LotteryGameNewVersion\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
 
 --method=Unity.Burst.BurstCompiler+BurstCompilerHelper, Unity.Burst, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::IsBurstEnabled()--8c2be93e18276203cbd918daa2748a10

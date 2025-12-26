@@ -124,14 +124,25 @@ public class GameManager : MonoBehaviour
     }
 
     #endregion
+
+
+
     public IEnumerator FetchUserData()
     {
+        // SHOW loader
+        if (loadingObj != null)
+            loadingObj.SetActive(true);
+
         WWWForm form = new WWWForm();
         form.AddField("id", PlayerPrefs.GetInt("UserId"));
 
         using (UnityWebRequest www = UnityWebRequest.Post(GameAPIs.getUserDataAPi, form))
         {
             yield return www.SendWebRequest();
+
+            // HIDE loader (request finished)
+            if (loadingObj != null)
+                loadingObj.SetActive(false);
 
             if (www.result != UnityWebRequest.Result.Success)
             {
@@ -145,32 +156,34 @@ public class GameManager : MonoBehaviour
 
                 if (data != null)
                 {
-                    // Define which fields to map
                     Dictionary<string, string> kv = new Dictionary<string, string>
-                    {
-                        { "Agent Id", PlayerPrefs.GetInt("UserId").ToString() },
-                        { "Limit", data.limit },
-                        { "Last Transaction", data.last_trn },
-                        { "Transaction Points", data.tran_pt },
-                        { "Date Time", data.datetime },
-                        { "Current Slot", data.current_slot }
-                    };
+                {
+                    { "Agent Id", PlayerPrefs.GetInt("UserId").ToString() },
+                    { "Limit", data.limit },
+                    { "Last Transaction", data.last_trn },
+                    { "Transaction Points", data.tran_pt },
+                    { "Date Time", data.datetime },
+                    { "Current Slot", data.current_slot }
+                };
+
                     drawTime.text = data.current_slot;
                     drawId.text = data.draw_id;
+
                     if (!advnceTime.selectedTimes.Contains(data.current_slot))
                     {
                         advnceTime.selectedTimes.Add(data.current_slot);
                     }
+
                     advnceTime.RecalculationForAdvTime();
-
-
                     PlayerPrefs.SetInt("selectedTimes", advnceTime.selectedTimes.Count);
+
                     string[] previousSlotParts = data.previous_slot.Split(':');
                     if (previousSlotParts.Length == 2)
                     {
                         lastResultMin.text = previousSlotParts[0];
-                        lastResultSec.text = previousSlotParts[1].Split(' ')[0]; // Splits "15 PM" to get "15"
+                        lastResultSec.text = previousSlotParts[1].Split(' ')[0];
                     }
+
                     int index = 0;
                     foreach (var entry in kv)
                     {
@@ -179,16 +192,18 @@ public class GameManager : MonoBehaviour
                             TMP_Text label = dataObjs[index].transform.GetChild(0).GetComponent<TMP_Text>();
                             TMP_Text value = dataObjs[index].transform.GetChild(1).GetComponent<TMP_Text>();
 
-                            label.text = entry.Key;   // static label
-                            value.text = entry.Value; // API value
+                            label.text = entry.Key;
+                            value.text = entry.Value;
                         }
                         index++;
                     }
                 }
+
                 incrementer.StartHeaderCurrentTime();
             }
         }
     }
+
 
     public IEnumerator FetchResults(GameObject[] list1, GameObject[] list2, GameObject[] list3)
     {
