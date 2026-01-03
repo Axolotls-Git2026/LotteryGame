@@ -21810,7 +21810,7 @@ MonoBehaviour:
   seriesMgr: {fileID: 135484781}
   quantityTotalTxt: {fileID: 1238056839}
   PointsTotalTxt: {fileID: 1438660501}
-  advanceTime: {fileID: 982300379}
+  advanceTime: {fileID: 2035430906}
 --- !u!4 &612436056
 Transform:
   m_ObjectHideFlags: 0
@@ -32585,7 +32585,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 982300375}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ec596f460151ecd4e802da3f33c1afe7, type: 3}
   m_Name: 
@@ -58296,7 +58296,7 @@ MonoBehaviour:
   gridMgr: {fileID: 2049766172}
   qntypointsMgr: {fileID: 612436055}
   incrementer: {fileID: 1190210942}
-  advnceTime: {fileID: 982300379}
+  advnceTime: {fileID: 2035430906}
   historyFetcher: {fileID: 323378458}
   buybtn: {fileID: 1988782747}
   dataObjs:
@@ -64579,6 +64579,58 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2035157766}
   m_CullTransparentMesh: 1
+--- !u!1 &2035430905
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2035430907}
+  - component: {fileID: 2035430906}
+  m_Layer: 0
+  m_Name: AdvTime
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2035430906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2035430905}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec596f460151ecd4e802da3f33c1afe7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  prefab: {fileID: 4617453294950671603, guid: a712dd371498d654f8ff3d0cffcd9641, type: 3}
+  content: {fileID: 533017629}
+  drawTime: {fileID: 1401425644}
+  previousTime: {fileID: 1257340317}
+  quantityToSelect: {fileID: 1465356920}
+  gridMgr: {fileID: 2049766172}
+  toggleList: []
+  selectedTimes: []
+--- !u!4 &2035430907
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2035430905}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 664.43994, y: 926.9742, z: -1.9579173}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!224 &2036516183 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 4726242562269110866, guid: 4796f051dfa9c3d49bd52982ef01452d, type: 3}
@@ -71220,3 +71272,4 @@ SceneRoots:
   - {fileID: 612436056}
   - {fileID: 451560945}
   - {fileID: 145340681}
+  - {fileID: 2035430907}

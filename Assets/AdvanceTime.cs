@@ -169,7 +169,7 @@ public class AdvanceTime : MonoBehaviour
         }
         toggleList.Clear();
         selectedTimes.Clear();
-        selectedTimes.Add(drawTime.text);
+        selectedTimes.Add(slots[0]);
         RecalculationForAdvTime();
 
         PlayerPrefs.SetInt("selectedTimes", selectedTimes.Count);

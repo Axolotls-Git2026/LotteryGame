@@ -75,6 +75,7 @@ public class GameManager : MonoBehaviour
             StartCoroutine(FetchUserData());
             GetTimer();
             StartCoroutine(FetchResultsOnStart());
+            StartCoroutine(GameManager.instance.advnceTime.FetchSlotsFromAPI());
 
         }
     }
@@ -91,6 +92,7 @@ public class GameManager : MonoBehaviour
         CheckSession();
         UpdatePlayerStatus(PlayerPrefs.GetInt("UserId"));
         GetTimer();
+        StartCoroutine(advnceTime.FetchSlotsFromAPI());
         FindAnyObjectByType<LoginManager>()?.gameObject.SetActive(false);
         //  toasterHolderObj = GameObject.FindGameObjectWithTag("LoginCanvas");
         //  ToastManager.Instance.transform.SetParent(canvas.transform);
@@ -202,6 +204,8 @@ public class GameManager : MonoBehaviour
                 incrementer.StartHeaderCurrentTime();
             }
         }
+         StartCoroutine(advnceTime.FetchSlotsFromAPI());
+
     }
 
 
@@ -287,6 +291,8 @@ public class GameManager : MonoBehaviour
         {
             list1[i].transform.GetChild(0)
                 .GetComponent<TMP_Text>().text = cachedResults[index];
+
+            Debug.Log("list 1 : " + cachedResults[index]);
         }
 
         // list2
@@ -294,6 +300,8 @@ public class GameManager : MonoBehaviour
         {
             list2[i].transform.GetChild(0)
                 .GetComponent<TMP_Text>().text = cachedResults[index];
+            Debug.Log("list 2 : " + cachedResults[index]);
+
         }
 
         // list3
@@ -301,9 +309,13 @@ public class GameManager : MonoBehaviour
         {
             list3[i].transform.GetChild(0)
                 .GetComponent<TMP_Text>().text = cachedResults[index];
+            Debug.Log("list 3 : " + cachedResults[index]);
+
         }
 
         Debug.Log("Stored results applied");
+       // StartCoroutine(GameManager.instance.historyFetcher.FetchHistory());
+
     }
 
     public IEnumerator FetchResults(GameObject[] list1, GameObject[] list2, GameObject[] list3)
@@ -324,6 +336,7 @@ public class GameManager : MonoBehaviour
             else
             {
                 ResultsResponse res = JsonUtility.FromJson<ResultsResponse>(www.downloadHandler.text);
+                Debug.Log("Results Response: " + www.downloadHandler.text);
 
                 if (res != null && res.status == "success" && res.data != null)
                 {
@@ -731,6 +744,7 @@ public class GameManager : MonoBehaviour
         }
         BetPayload<int, int> payload = new BetPayload<int, int>(userid, betNumbers, points, advnceTime.selectedTimes);
         string json = JsonUtility.ToJson(payload);
+        Debug.Log("BET PAYLOAD:\n" + PrettyJson(json));
 
         loadingObj.SetActive(true);
 
@@ -786,6 +800,68 @@ public class GameManager : MonoBehaviour
             gridMgr.ClearAll();
         }
     }
+    public static string PrettyJson(string json)
+    {
+        int indent = 0;
+        bool quoted = false;
+        var sb = new System.Text.StringBuilder();
+
+        for (int i = 0; i < json.Length; i++)
+        {
+            char ch = json[i];
+
+            switch (ch)
+            {
+                case '{':
+                case '[':
+                    sb.Append(ch);
+                    if (!quoted)
+                    {
+                        sb.AppendLine();
+                        sb.Append(new string(' ', ++indent * 2));
+                    }
+                    break;
+
+                case '}':
+                case ']':
+                    if (!quoted)
+                    {
+                        sb.AppendLine();
+                        sb.Append(new string(' ', --indent * 2));
+                    }
+                    sb.Append(ch);
+                    break;
+
+                case '"':
+                    sb.Append(ch);
+                    bool escaped = false;
+                    int index = i;
+                    while (index > 0 && json[--index] == '\\') escaped = !escaped;
+                    if (!escaped) quoted = !quoted;
+                    break;
+
+                case ',':
+                    sb.Append(ch);
+                    if (!quoted)
+                    {
+                        sb.AppendLine();
+                        sb.Append(new string(' ', indent * 2));
+                    }
+                    break;
+
+                case ':':
+                    sb.Append(ch);
+                    if (!quoted) sb.Append(" ");
+                    break;
+
+                default:
+                    sb.Append(ch);
+                    break;
+            }
+        }
+        return sb.ToString();
+    }
+
     IEnumerator ClearDelay()
     {
         yield return new WaitForSeconds(2f);

@@ -64,11 +64,14 @@ public class ShowRandomNums : MonoBehaviour
 
     IEnumerator DisableDelay()
     {
-        yield return new WaitForSeconds(2f);
+        StartCoroutine(GameManager.instance.FetchResultsOnStart());
+        
+        yield return new WaitForSeconds(3f);
         this.gameObject.SetActive(false);
        GameManager.instance.buybtn.interactable = true;
+      //  StartCoroutine(GameManager.instance.advnceTime.FetchSlotsFromAPI());
         GameManager.instance.GetTimer();
-        StartCoroutine(GameManager.instance.historyFetcher.FetchHistory());
+        //StartCoroutine(GameManager.instance.historyFetcher.FetchHistory());
       
     }
 

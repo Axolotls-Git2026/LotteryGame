@@ -80,11 +80,11 @@ public class HistoryFetcher : MonoBehaviour
     }
     private void OnEnable()
     {
-       // StartCoroutine(FetchHistory());
+        StartCoroutine(FetchHistory());
     }
     void Start()
     {
-        StartCoroutine(FetchHistory());
+     //   StartCoroutine(FetchHistory());
     }
 
     public IEnumerator FetchHistory()
@@ -411,7 +411,7 @@ public class HistoryFetcher : MonoBehaviour
                             GameObject detailItem = Instantiate(detailItemPrefab, detailContent);
 
                             // Set text on the children of the detail prefab
-                            SetText(detailItem.transform.GetChild(0), detail.id);
+                            SetText(detailItem.transform.GetChild(0), detail.number);
                             SetText(detailItem.transform.GetChild(1), (int.Parse(detail.amount) * 2).ToString());
                             SetText(detailItem.transform.GetChild(2), detail.amount);
                             SetText(detailItem.transform.GetChild(3), detail.orderid);
