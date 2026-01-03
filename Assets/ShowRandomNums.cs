@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Collections.Generic;
 
 public class ShowRandomNums : MonoBehaviour
 {
@@ -33,9 +34,16 @@ public class ShowRandomNums : MonoBehaviour
         }
         return prefixes;
     }
+    private IEnumerator StartGameFlow()
+    {
+        yield return StartCoroutine(GameManager.instance.FetchResults(list1, list2, list3));
+        yield return StartCoroutine(AnimateNumbers());
+    }
+
 
     public IEnumerator AnimateNumbers()
     {
+        StartCoroutine(GameManager.instance.FetchResults(list1, list2, list3));
         float duration = 2f;
         float elapsed = 0f;
 
@@ -49,7 +57,7 @@ public class ShowRandomNums : MonoBehaviour
             elapsed += 0.1f;
         }
 
-        StartCoroutine(GameManager.instance.FetchResults(list1, list2, list3));
+       GameManager.instance.ApplyStoredResults(list1, list2, list3);
         StartCoroutine(DisableDelay());
         animCoroutine = null;
     }

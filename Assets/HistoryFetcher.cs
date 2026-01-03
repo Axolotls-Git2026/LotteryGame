@@ -80,7 +80,7 @@ public class HistoryFetcher : MonoBehaviour
     }
     private void OnEnable()
     {
-        StartCoroutine(FetchHistory());
+       // StartCoroutine(FetchHistory());
     }
     void Start()
     {
@@ -120,8 +120,11 @@ public class HistoryFetcher : MonoBehaviour
             {
                 string json = www.downloadHandler.text;
                 Debug.Log("Response: " + json);
-
                 HistoryResponse response = JsonUtility.FromJson<HistoryResponse>(json);
+                if(response.status == "error")
+                {
+                    GameManager_3D.instance.loadingObj.gameObject.SetActive(false);
+                }
 
                 if (response != null && response.data != null)
                 {

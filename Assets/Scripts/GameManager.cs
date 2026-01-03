@@ -205,6 +205,107 @@ public class GameManager : MonoBehaviour
     }
 
 
+    //public IEnumerator FetchResults(GameObject[] list1, GameObject[] list2, GameObject[] list3)
+    //{
+    //    CheckSession();
+
+    //    WWWForm form = new WWWForm();
+    //    form.AddField("id", PlayerPrefs.GetInt("UserId"));
+
+    //    using (UnityWebRequest www = UnityWebRequest.Post(GameAPIs.getResultsAPi, form))
+    //    {
+    //        yield return www.SendWebRequest();
+
+    //        if (www.result != UnityWebRequest.Result.Success)
+    //        {
+    //            Debug.LogError("Error fetching results: " + www.error);
+    //        }
+    //        else
+    //        {
+    //            Debug.Log("Results Response: " + www.downloadHandler.text);
+
+    //            ResultsResponse res = JsonUtility.FromJson<ResultsResponse>(www.downloadHandler.text);
+
+    //            if (res != null && res.status == "success" && res.data != null)
+    //            {
+    //                // Reverse the list
+    //                res.data.Reverse();
+
+    //                // --- Existing resultObjs assignment ---
+    //                for (int i = 0; i < resultObjs.Length && i < res.data.Count; i++)
+    //                {
+    //                    TMP_Text txt = resultObjs[i].transform.GetChild(0).GetComponent<TMP_Text>();
+    //                    txt.text = res.data[i].number;
+    //                }
+
+    //                // --- New logic: fill list1, list2, list3 sequentially ---
+    //                int index = 0;
+
+    //                // Fill list1
+    //                for (int i = 0; i < list1.Length && index < res.data.Count; i++, index++)
+    //                {
+    //                    TMP_Text txt = list1[i].transform.GetChild(0).GetComponent<TMP_Text>();
+    //                    txt.text = res.data[index].number;
+    //                }
+
+    //                // Fill list2
+    //                for (int i = 0; i < list2.Length && index < res.data.Count; i++, index++)
+    //                {
+    //                    TMP_Text txt = list2[i].transform.GetChild(0).GetComponent<TMP_Text>();
+    //                    txt.text = res.data[index].number;
+    //                }
+
+    //                // Fill list3
+    //                for (int i = 0; i < list3.Length && index < res.data.Count; i++, index++)
+    //                {
+    //                    TMP_Text txt = list3[i].transform.GetChild(0).GetComponent<TMP_Text>();
+    //                    txt.text = res.data[index].number;
+    //                }
+    //            }
+    //        }
+    //    }
+    //    // gridMgr.ClearAll();
+    //    SceneManager.LoadSceneAsync(1);
+    //    // yield return StartCoroutine(ClearAndReinitialize());
+    //    yield return StartCoroutine(FetchUserData());
+    //}
+    private List<string> cachedResults = new List<string>();
+    private bool resultsReady = false;
+
+    public void ApplyStoredResults(GameObject[] list1, GameObject[] list2, GameObject[] list3)
+    {
+        if (!resultsReady || cachedResults.Count == 0)
+        {
+            Debug.LogWarning("Results not ready");
+            return;
+        }
+
+        int index = 0;
+
+        // list1
+        for (int i = 0; i < list1.Length && index < cachedResults.Count; i++, index++)
+        {
+            list1[i].transform.GetChild(0)
+                .GetComponent<TMP_Text>().text = cachedResults[index];
+        }
+
+        // list2
+        for (int i = 0; i < list2.Length && index < cachedResults.Count; i++, index++)
+        {
+            list2[i].transform.GetChild(0)
+                .GetComponent<TMP_Text>().text = cachedResults[index];
+        }
+
+        // list3
+        for (int i = 0; i < list3.Length && index < cachedResults.Count; i++, index++)
+        {
+            list3[i].transform.GetChild(0)
+                .GetComponent<TMP_Text>().text = cachedResults[index];
+        }
+
+        Debug.Log("Stored results applied");
+    }
+
     public IEnumerator FetchResults(GameObject[] list1, GameObject[] list2, GameObject[] list3)
     {
         CheckSession();
@@ -222,53 +323,26 @@ public class GameManager : MonoBehaviour
             }
             else
             {
-                Debug.Log("Results Response: " + www.downloadHandler.text);
-
                 ResultsResponse res = JsonUtility.FromJson<ResultsResponse>(www.downloadHandler.text);
 
                 if (res != null && res.status == "success" && res.data != null)
                 {
-                    // Reverse the list
                     res.data.Reverse();
 
-                    // --- Existing resultObjs assignment ---
-                    for (int i = 0; i < resultObjs.Length && i < res.data.Count; i++)
+                    cachedResults.Clear();
+
+                    foreach (var item in res.data)
                     {
-                        TMP_Text txt = resultObjs[i].transform.GetChild(0).GetComponent<TMP_Text>();
-                        txt.text = res.data[i].number;
+                        cachedResults.Add(item.number);
                     }
 
-                    // --- New logic: fill list1, list2, list3 sequentially ---
-                    int index = 0;
-
-                    // Fill list1
-                    for (int i = 0; i < list1.Length && index < res.data.Count; i++, index++)
-                    {
-                        TMP_Text txt = list1[i].transform.GetChild(0).GetComponent<TMP_Text>();
-                        txt.text = res.data[index].number;
-                    }
-
-                    // Fill list2
-                    for (int i = 0; i < list2.Length && index < res.data.Count; i++, index++)
-                    {
-                        TMP_Text txt = list2[i].transform.GetChild(0).GetComponent<TMP_Text>();
-                        txt.text = res.data[index].number;
-                    }
-
-                    // Fill list3
-                    for (int i = 0; i < list3.Length && index < res.data.Count; i++, index++)
-                    {
-                        TMP_Text txt = list3[i].transform.GetChild(0).GetComponent<TMP_Text>();
-                        txt.text = res.data[index].number;
-                    }
+                    resultsReady = true;
+                    Debug.Log("Results cached successfully");
                 }
             }
         }
-        // gridMgr.ClearAll();
-        SceneManager.LoadSceneAsync(1);
-        // yield return StartCoroutine(ClearAndReinitialize());
-        yield return StartCoroutine(FetchUserData());
     }
+
 
     private IEnumerator ClearAndReinitialize()
     {
