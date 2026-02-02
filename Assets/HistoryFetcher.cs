@@ -397,6 +397,10 @@ public class HistoryFetcher : MonoBehaviour
                         {
                             GameObject detailItem3d = Instantiate(detailItemPrefab_3D, detailContent);
                             SetText(detailItem3d.transform.GetChild(0), detail.number);
+                            if(detail.status == "win")
+                            {
+                                detailItem3d.transform.GetChild(0).GetComponent<TMP_Text>().color = Color.green;
+                            }
                             SetText(detailItem3d.transform.GetChild(1), (int.Parse(detail.amount) * 2).ToString());
                             SetText(detailItem3d.transform.GetChild(2), detail.amount);
                             SetText(detailItem3d.transform.GetChild(3), detail.bet_type);
@@ -409,7 +413,10 @@ public class HistoryFetcher : MonoBehaviour
 
                             // Instantiate the detail item prefab
                             GameObject detailItem = Instantiate(detailItemPrefab, detailContent);
-
+                            if (detail.status == "win")
+                            {
+                                detailItem.transform.GetChild(0).GetComponent<TMP_Text>().color = Color.green;
+                            }
                             // Set text on the children of the detail prefab
                             SetText(detailItem.transform.GetChild(0), detail.number);
                             SetText(detailItem.transform.GetChild(1), (int.Parse(detail.amount) * 2).ToString());

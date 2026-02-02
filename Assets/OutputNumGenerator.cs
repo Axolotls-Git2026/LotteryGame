@@ -126,13 +126,15 @@ public class OutputNumGenerator : MonoBehaviour
 
         bool fpOn = frontPairToggle != null && frontPairToggle.isOn;
         bool bpOn = backPairToggle != null && backPairToggle.isOn;
+        bool spOn = splitPairToggle != null && splitPairToggle.isOn;
+        bool apOn = anyPairToggle != null && anyPairToggle.isOn;
+
+        bool anyPairOn = fpOn || bpOn || spOn || apOn;
 
         // Any toggle OTHER than FP / BP
         bool otherToggleOn =
             (straightToggle != null && straightToggle.isOn) ||
-            (boxToggle != null && boxToggle.isOn) ||
-            (splitPairToggle != null && splitPairToggle.isOn) ||
-            (anyPairToggle != null && anyPairToggle.isOn);
+            (boxToggle != null && boxToggle.isOn);
 
         // -----------------------------
         // ?? Case 1: 2-digit input
@@ -140,7 +142,7 @@ public class OutputNumGenerator : MonoBehaviour
         if (input.Length == 2)
         {
             // Must be ONLY FP / BP
-            if (!fpOn && !bpOn)
+            if (!anyPairOn)
             {
                 Debug.LogWarning("2-digit input is allowed only for Front Pair or Back Pair.");
                 return;

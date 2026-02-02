@@ -706,7 +706,7 @@ public class GameManager_3D : MonoBehaviour
 
             if (response != null && response.pdf_urls != null && response.pdf_urls.Length > 0)
             {
-                ToastManager.Instance.ShowToast("Data sent successfully");
+                ToastManager.Instance.ShowToast("Bet Placed Successfully");
                 StartCoroutine(ClearDelay());
 
                 for (int i = 0; i < response.pdf_urls.Count(); i++)
