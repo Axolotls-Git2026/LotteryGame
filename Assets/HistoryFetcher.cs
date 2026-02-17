@@ -190,45 +190,45 @@ public class HistoryFetcher : MonoBehaviour
                                     // This line sets up the button click event
                                     claimBtn.onClick.AddListener(() => StartCoroutine(GameManager.instance.ClaimPointsCoroutine(entry.barcode)));
                                 }
-                                Button cancelBtn = item.transform.GetChild(7).GetComponent<Button>();
+                                //Button cancelBtn = item.transform.GetChild(7).GetComponent<Button>();
 
-                                if (entry.status == "active")
-                                {
-                                    cancelBtn.GetComponent<Image>().color = colorActive;
-                                }
-                                else if (entry.status == "cancelled")
-                                {
-                                    cancelBtn.GetComponent<Image>().color = colorCancelled;
-                                }
-                                else
-                                {
-                                    cancelBtn.GetComponent<Image>().color = colorOther;
+                                //if (entry.status == "active")
+                                //{
+                                //    cancelBtn.GetComponent<Image>().color = colorActive;
+                                //}
+                                //else if (entry.status == "cancelled")
+                                //{
+                                //    cancelBtn.GetComponent<Image>().color = colorCancelled;
+                                //}
+                                //else
+                                //{
+                                //    cancelBtn.GetComponent<Image>().color = colorOther;
 
-                                }
+                                //}
 
-                                if (cancelBtn != null)
-                                {
-                                    // This line sets up the button click event
-                                    cancelBtn.onClick.AddListener(() =>
-                                    {
+                                //if (cancelBtn != null)
+                                //{
+                                //    // This line sets up the button click event
+                                //    cancelBtn.onClick.AddListener(() =>
+                                //    {
 
-                                        if (entry.status == "active")
-                                        {
-                                            StartCoroutine(GameManager.instance.CancelBetAPI(entry.barcode));
-                                        }
-                                        else if (entry.status == "cancelled")
-                                        {
-                                            ToastManager.Instance.ShowToast("Bet already cancelled");
+                                //        if (entry.status == "active")
+                                //        {
+                                //            StartCoroutine(GameManager.instance.CancelBetAPI(entry.barcode));
+                                //        }
+                                //        else if (entry.status == "cancelled")
+                                //        {
+                                //            ToastManager.Instance.ShowToast("Bet already cancelled");
 
-                                        }
-                                        else
-                                        {
-                                            ToastManager.Instance.ShowToast("The bet time is already completed");
-                                        }
+                                //        }
+                                //        else
+                                //        {
+                                //            ToastManager.Instance.ShowToast("The bet time is already completed");
+                                //        }
 
-                                        StartCoroutine(FetchHistory());
-                                    });
-                                }
+                                //        StartCoroutine(FetchHistory());
+                                //    });
+                                //}
                             }
 
                             // Set text on the prefab's children
@@ -264,53 +264,53 @@ public class HistoryFetcher : MonoBehaviour
                             SetText(item.transform.GetChild(6), entry.claim_point);
 
                             // Assuming your button is at index 9
-                            Button cancelBtn = item.transform.GetChild(7).GetComponent<Button>();
+                            //Button cancelBtn = item.transform.GetChild(7).GetComponent<Button>();
 
-                            if (entry.status == "active")
-                            {
-                                cancelBtn.GetComponent<Image>().color = colorActive;
-                            }
-                            else if (entry.status == "cancelled")
-                            {
-                                cancelBtn.GetComponent<Image>().color = colorCancelled;
-                            }
-                            else
-                            {
-                                cancelBtn.GetComponent<Image>().color = colorOther;
+                            //if (entry.status == "active")
+                            //{
+                            //    cancelBtn.GetComponent<Image>().color = colorActive;
+                            //}
+                            //else if (entry.status == "cancelled")
+                            //{
+                            //    cancelBtn.GetComponent<Image>().color = colorCancelled;
+                            //}
+                            //else
+                            //{
+                            //    cancelBtn.GetComponent<Image>().color = colorOther;
 
-                            }
+                            //}
 
-                            if (cancelBtn != null)
-                            {
-                                // This line sets up the button click event
-                                cancelBtn.onClick.AddListener(() =>
-                                {
+                            //if (cancelBtn != null)
+                            //{
+                            //    // This line sets up the button click event
+                            //    cancelBtn.onClick.AddListener(() =>
+                            //    {
 
-                                    if (entry.status == "active")
-                                    {
-                                        if (SceneManager.GetActiveScene().name.Contains("3D"))
-                                        {
-                                            StartCoroutine(GameManager_3D.instance.CancelBetAPI(entry.barcode));
-                                        }
-                                        else
-                                        {
-                                            StartCoroutine(GameManager.instance.CancelBetAPI(entry.barcode));
+                            //        if (entry.status == "active")
+                            //        {
+                            //            if (SceneManager.GetActiveScene().name.Contains("3D"))
+                            //            {
+                            //                StartCoroutine(GameManager_3D.instance.CancelBetAPI(entry.barcode));
+                            //            }
+                            //            else
+                            //            {
+                            //                StartCoroutine(GameManager.instance.CancelBetAPI(entry.barcode));
 
-                                        }
-                                    }
-                                    else if (entry.status == "cancelled")
-                                    {
-                                        ToastManager.Instance.ShowToast("Bet already cancelled");
+                            //            }
+                            //        }
+                            //        else if (entry.status == "cancelled")
+                            //        {
+                            //            ToastManager.Instance.ShowToast("Bet already cancelled");
 
-                                    }
-                                    else
-                                    {
-                                        ToastManager.Instance.ShowToast("The bet time is already completed");
-                                    }
+                            //        }
+                            //        else
+                            //        {
+                            //            ToastManager.Instance.ShowToast("The bet time is already completed");
+                            //        }
 
-                                    StartCoroutine(FetchHistory());
-                                });
-                            }
+                            //        StartCoroutine(FetchHistory());
+                            //    });
+                            //}
                             // Assuming your button is at index 9
                             Button detailsButton = item.transform.GetChild(9).GetComponent<Button>();
                             if (detailsButton != null)
