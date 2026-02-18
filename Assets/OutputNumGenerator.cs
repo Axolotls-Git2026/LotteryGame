@@ -194,7 +194,8 @@ public class OutputNumGenerator : MonoBehaviour
 
             // Only allowed if FP or BP is selected
             if ((frontPairToggle != null && frontPairToggle.isOn) ||
-                (backPairToggle != null && backPairToggle.isOn))
+                (backPairToggle != null && backPairToggle.isOn) || (splitPairToggle != null && splitPairToggle.isOn) ||
+                (anyPairToggle != null && anyPairToggle.isOn))
             {
                 var results = new List<(string type, string number)>();
 
@@ -222,6 +223,8 @@ public class OutputNumGenerator : MonoBehaviour
                 // ?? Generate FP & BP from same 2-digit number
                 Add2DigitResult(frontPairToggle, "FP", input);
                 Add2DigitResult(backPairToggle, "BP", input);
+                Add2DigitResult(splitPairToggle, "SP", input);
+                Add2DigitResult(anyPairToggle, "AP", input);
 
                 // Spawn prefabs
                 foreach (var (type, number) in results)
