@@ -917,11 +917,11 @@ public class GameManager : MonoBehaviour
 
     public void CancelBetBtn()
     {
-        if (string.IsNullOrEmpty(barcodeTxt.text))
-        {
-            ToastManager.Instance.ShowToast("Enter valid Barcode ID");
-            return;
-        }
+        //if (string.IsNullOrEmpty(barcodeTxt.text))
+        //{
+        //    ToastManager.Instance.ShowToast("Enter valid Barcode ID");
+        //    return;
+        //}
 
         // Start the coroutine to send the API request
         StartCoroutine(CancelBetAPI(barcodeTxt.text));
@@ -1016,13 +1016,11 @@ public class GameManager : MonoBehaviour
             {
                 Debug.LogError("Error claiming points: " + www.error);
                 ToastManager.Instance.ShowToast("Error claiming points");
-
-
+                barcodeTxt.text = "";
             }
             else
             {
                 Debug.Log("Claim Points Response: " + www.downloadHandler.text);
-
 
                 // Optionally parse JSON if you want to check status
                 var res = JsonUtility.FromJson<ClaimPointsResponse>(www.downloadHandler.text);
@@ -1035,8 +1033,8 @@ public class GameManager : MonoBehaviour
                 {
                     Debug.LogWarning("Failed to claim points.");
                     ToastManager.Instance.ShowToast(res.message);
-
                 }
+                barcodeTxt.text = "";
             }
         }
     }

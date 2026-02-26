@@ -769,11 +769,11 @@ public class GameManager_3D : MonoBehaviour
     }
     public void CancelBetBtn()
     {
-        if (string.IsNullOrEmpty(barcodeTxt.text))
-        {
-            ToastManager.Instance.ShowToast("Enter valid Barcode ID");
-            return;
-        }
+        //if (string.IsNullOrEmpty(barcodeTxt.text))
+        //{
+        //    ToastManager.Instance.ShowToast("Enter valid Barcode ID");
+        //    return;
+        //}
 
         // Start the coroutine to send the API request
         StartCoroutine(CancelBetAPI(barcodeTxt.text));
@@ -867,7 +867,7 @@ public class GameManager_3D : MonoBehaviour
                 Debug.LogError("Error claiming points: " + www.error);
                 ToastManager.Instance.ShowToast("Error claiming points");
 
-
+                barcodeTxt.text = "";
             }
             else
             {
@@ -887,6 +887,7 @@ public class GameManager_3D : MonoBehaviour
                     ToastManager.Instance.ShowToast(res.message);
 
                 }
+                barcodeTxt.text = "";
             }
         }
     }
