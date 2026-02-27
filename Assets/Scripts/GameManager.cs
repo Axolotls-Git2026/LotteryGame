@@ -354,6 +354,8 @@ public class GameManager : MonoBehaviour
                 }
             }
         }
+        buybtn.interactable = true;
+
     }
 
 
@@ -937,7 +939,8 @@ public class GameManager : MonoBehaviour
 
         WWWForm form = new WWWForm();
         form.AddField("id", PlayerPrefs.GetInt("UserId"));
-        form.AddField("barcode", barcode);
+        form.AddField("game_type", "4D");
+        form.AddField("draw_time", drawTime.text);
 
         loadingObj.SetActive(true);
 

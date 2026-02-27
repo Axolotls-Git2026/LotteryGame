@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 public class ShowRandomNums : MonoBehaviour
 {
@@ -64,15 +65,16 @@ public class ShowRandomNums : MonoBehaviour
 
     IEnumerator DisableDelay()
     {
-        StartCoroutine(GameManager.instance.FetchResultsOnStart());
+      //  StartCoroutine(GameManager.instance.FetchResultsOnStart());
         
         yield return new WaitForSeconds(3f);
-        this.gameObject.SetActive(false);
-       GameManager.instance.buybtn.interactable = true;
-      //  StartCoroutine(GameManager.instance.advnceTime.FetchSlotsFromAPI());
-        GameManager.instance.GetTimer();
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        // this.gameObject.SetActive(false);
+        //GameManager.instance.buybtn.interactable = true;
+        // GameManager.instance.GetTimer();
+
+        //  StartCoroutine(GameManager.instance.advnceTime.FetchSlotsFromAPI());
         //StartCoroutine(GameManager.instance.historyFetcher.FetchHistory());
-      
     }
 
     private void UpdateListWithRandom(GameObject[] list, int[] prefixes)

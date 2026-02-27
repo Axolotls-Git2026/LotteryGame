@@ -785,7 +785,8 @@ public class GameManager_3D : MonoBehaviour
 
         WWWForm form = new WWWForm();
         form.AddField("id", PlayerPrefs.GetInt("UserId"));
-        form.AddField("barcode", barcode);
+        form.AddField("game_type", "3D");
+        form.AddField("draw_time", drawTime.text);
 
         loadingObj.SetActive(true);
 
